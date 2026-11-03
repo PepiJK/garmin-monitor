@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: #f6f8fa;
+  color: #0f172a;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
