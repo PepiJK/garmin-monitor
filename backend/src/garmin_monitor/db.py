@@ -77,6 +77,44 @@ CREATE TABLE IF NOT EXISTS sync_runs (
     health_days_synced INTEGER NOT NULL DEFAULT 0,
     error_message TEXT
 );
+
+CREATE TABLE IF NOT EXISTS training_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    notes TEXT,
+    raw_yaml TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS plan_days (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id INTEGER NOT NULL REFERENCES training_plans(id) ON DELETE CASCADE,
+    date TEXT NOT NULL UNIQUE,
+    sport_type TEXT NOT NULL,
+    workout_title TEXT NOT NULL,
+    focus TEXT,
+    goal_km REAL,
+    goal_duration_min REAL,
+    hr_goal_label TEXT,
+    hr_min INTEGER,
+    hr_max INTEGER,
+    steps_json TEXT NOT NULL DEFAULT '[]',
+    garmin_workout_id INTEGER,
+    garmin_schedule_id INTEGER,
+    actual_km REAL,
+    actual_duration_min REAL,
+    actual_avg_hr INTEGER,
+    actual_max_hr INTEGER,
+    matched_activity_ids TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'pending',
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_plan_days_plan_id ON plan_days(plan_id);
+CREATE INDEX IF NOT EXISTS idx_plan_days_date ON plan_days(date);
 """
 
 

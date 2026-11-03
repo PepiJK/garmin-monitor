@@ -19,6 +19,7 @@ from garmin_monitor.db import (
     start_sync_run,
 )
 from garmin_monitor.garmin_client import GarminClient, JsonDict
+from garmin_monitor.plan_service import reconcile_plan_completions
 
 logger = logging.getLogger(__name__)
 
@@ -418,7 +419,9 @@ class SyncService:
     ) -> None:
         self.settings = settings
         self.client = client or GarminClient(settings.garmin_token_dir)
-        self.post_sync_hook = post_sync_hook
+        self.post_sync_hook = post_sync_hook or (
+            lambda conn, today: reconcile_plan_completions(conn, today)
+        )
 
     def sync(
         self,
