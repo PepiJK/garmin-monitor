@@ -87,11 +87,20 @@ def create_app(
             if cleaned:
                 candidate = (static_dir / cleaned).resolve()
                 if candidate.is_relative_to(static_dir.resolve()) and candidate.is_file():
-                    return FileResponse(candidate)
+                    cache_header = (
+                        "public, max-age=31536000, immutable"
+                        if candidate.suffix in {".js", ".css"} and "-" in candidate.stem
+                        else "public, max-age=3600"
+                    )
+                    return FileResponse(candidate, headers={"Cache-Control": cache_header})
             index_file = static_dir / "index.html"
             if index_file.is_file():
-                return FileResponse(index_file)
-        return HTMLResponse(content=FALLBACK_SPA_HTML, status_code=200)
+                return FileResponse(index_file, headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(
+            content=FALLBACK_SPA_HTML,
+            status_code=200,
+            headers={"Cache-Control": "no-cache"},
+        )
 
     return app
 

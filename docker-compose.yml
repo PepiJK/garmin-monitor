@@ -1,0 +1,28 @@
+services:
+  garmin-monitor:
+    image: ghcr.io/${GITHUB_REPOSITORY:-josef/garmin-monitor}:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: garmin-monitor
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      TZ: ${TZ:-Europe/Vienna}
+      DATABASE_PATH: /data/garmin.db
+      GARMIN_TOKEN_DIR: /data/garmin_tokens
+      STATIC_DIR: /app/static
+      SYNC_INTERVAL_HOURS: ${SYNC_INTERVAL_HOURS:-2}
+      SYNC_BACKFILL_DAYS: ${SYNC_BACKFILL_DAYS:-90}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8000}:8000"
+    networks:
+      - pepnet_web_net
+
+networks:
+  pepnet_web_net:
+    external: true
