@@ -84,6 +84,15 @@ describe('AppComponent', () => {
     expect(router.url).toBe('/training');
 
     await harness.navigateByUrl('/health');
+    httpMock.match('/api/health/dashboard?days=30').forEach((r) =>
+      r.flush({
+        days_requested: 30,
+        latest_date: '2026-11-03',
+        warnings: [],
+        kpis: {},
+        series: [],
+      }),
+    );
     expect(router.url).toBe('/health');
   });
 });
