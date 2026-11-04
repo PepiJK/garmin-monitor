@@ -108,6 +108,16 @@ CREATE TABLE IF NOT EXISTS plan_days (
     actual_duration_min REAL,
     actual_avg_hr INTEGER,
     actual_max_hr INTEGER,
+    actual_pace_min_per_km TEXT,
+    actual_cadence_spm INTEGER,
+    actual_stride_m REAL,
+    actual_power_w INTEGER,
+    actual_training_load REAL,
+    actual_aerobic_te REAL,
+    actual_anaerobic_te REAL,
+    actual_calories INTEGER,
+    rpe INTEGER,
+    notes TEXT,
     matched_activity_ids TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL DEFAULT 'pending',
     updated_at TEXT NOT NULL
@@ -115,6 +125,17 @@ CREATE TABLE IF NOT EXISTS plan_days (
 
 CREATE INDEX IF NOT EXISTS idx_plan_days_plan_id ON plan_days(plan_id);
 CREATE INDEX IF NOT EXISTS idx_plan_days_date ON plan_days(date);
+
+CREATE TABLE IF NOT EXISTS stammdaten (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    category TEXT NOT NULL,
+    parameter TEXT NOT NULL,
+    value TEXT NOT NULL,
+    unit_or_range TEXT,
+    reference_note TEXT,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -144,9 +165,27 @@ def connect_db(db_path: Path | str) -> Iterator[sqlite3.Connection]:
 
 
 def init_db(db_path: Path | str) -> None:
-    """Idempotently initialize all database tables and indexes."""
+    """Idempotently initialize all database tables, indexes, and column migrations."""
     with connect_db(db_path) as conn:
         conn.executescript(SCHEMA_SQL)
+        existing_cols = {
+            str(row["name"]) for row in conn.execute("PRAGMA table_info(plan_days)").fetchall()
+        }
+        migrations: list[tuple[str, str]] = [
+            ("actual_pace_min_per_km", "TEXT"),
+            ("actual_cadence_spm", "INTEGER"),
+            ("actual_stride_m", "REAL"),
+            ("actual_power_w", "INTEGER"),
+            ("actual_training_load", "REAL"),
+            ("actual_aerobic_te", "REAL"),
+            ("actual_anaerobic_te", "REAL"),
+            ("actual_calories", "INTEGER"),
+            ("rpe", "INTEGER"),
+            ("notes", "TEXT"),
+        ]
+        for col_name, col_type in migrations:
+            if col_name not in existing_cols:
+                conn.execute(f"ALTER TABLE plan_days ADD COLUMN {col_name} {col_type}")
 
 
 def is_database_empty(conn: sqlite3.Connection) -> bool:

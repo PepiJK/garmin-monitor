@@ -19,7 +19,7 @@ from garmin_monitor.db import (
     start_sync_run,
 )
 from garmin_monitor.garmin_client import GarminClient, JsonDict
-from garmin_monitor.plan_service import reconcile_plan_completions
+from garmin_monitor.plan_service import reconcile_plan_completions, sync_future_plan_conn
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +114,7 @@ class SyncResult(BaseModel):
     days_synced: int
     activities_synced: int
     health_days_synced: int
+    planned_workouts_synced: int = 0
     start_date: str
     end_date: str
 
@@ -453,6 +454,30 @@ class SyncService:
                 for raw_act in raw_activities:
                     if "activityId" not in raw_act:
                         continue
+                    if "directWorkoutRpe" not in raw_act and hasattr(
+                        self.client, "fetch_activity_detail"
+                    ):
+                        detail = self.client.fetch_activity_detail(raw_act["activityId"])
+                        if isinstance(detail, dict):
+                            summary_dto = (
+                                detail.get("summaryDTO")
+                                if isinstance(detail.get("summaryDTO"), dict)
+                                else {}
+                            )
+                            metadata_dto = (
+                                detail.get("metadataDTO")
+                                if isinstance(detail.get("metadataDTO"), dict)
+                                else {}
+                            )
+                            if summary_dto.get("directWorkoutRpe") is not None:
+                                raw_act["directWorkoutRpe"] = summary_dto["directWorkoutRpe"]
+                            if summary_dto.get("directWorkoutFeel") is not None:
+                                raw_act["directWorkoutFeel"] = summary_dto["directWorkoutFeel"]
+                            if (
+                                raw_act.get("associatedWorkoutId") is None
+                                and metadata_dto.get("associatedWorkoutId") is not None
+                            ):
+                                raw_act["associatedWorkoutId"] = metadata_dto["associatedWorkoutId"]
                     act_record = parse_activity(raw_act, tz, synced_at=synced_at)
                     upsert_activity(conn, act_record)
                     activities_count += 1
@@ -468,6 +493,18 @@ class SyncService:
                 if self.post_sync_hook is not None:
                     self.post_sync_hook(conn, today_local)
 
+                planned_synced = 0
+                if hasattr(self.client, "upload_workout"):
+                    try:
+                        planned_synced = sync_future_plan_conn(
+                            conn,
+                            self.client,
+                            today_local,
+                            force=False,
+                        )
+                    except Exception as plan_exc:
+                        logger.warning(f"Future plan workout sync skipped: {plan_exc}")
+
                 finish_sync_run(
                     conn,
                     run_id,
@@ -480,6 +517,7 @@ class SyncService:
                     days_synced=effective_days,
                     activities_synced=activities_count,
                     health_days_synced=health_count,
+                    planned_workouts_synced=planned_synced,
                     start_date=start_date.isoformat(),
                     end_date=today_local.isoformat(),
                 )

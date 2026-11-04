@@ -9,11 +9,14 @@ from pathlib import Path
 from garmin_monitor.config import Settings, get_settings
 from garmin_monitor.db import connect_db, init_db
 from garmin_monitor.garmin_client import GarminClient
-from garmin_monitor.plan_schema import load_plan_from_file
+from garmin_monitor.plan_schema import load_plan_from_file, load_stammdaten_from_file
 from garmin_monitor.plan_service import (
     apply_plan,
+    apply_stammdaten,
     export_active_plan_yaml,
+    export_stammdaten_yaml,
     get_active_plan_with_days,
+    get_stammdaten,
     sync_future_plan_to_garmin,
 )
 from garmin_monitor.sync_service import SyncService
@@ -91,6 +94,26 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Re-upload and re-schedule all future workouts even if already synced",
     )
+
+    stamm_parser = subparsers.add_parser(
+        "stammdaten",
+        help="Manage athlete master data and performance diagnostics (Stammdaten)",
+    )
+    stamm_sub = stamm_parser.add_subparsers(dest="stammdaten_command", required=True)
+    stamm_sub.add_parser("summary", help="Print a summary table of Stammdaten")
+    stamm_export_parser = stamm_sub.add_parser("export", help="Export Stammdaten as YAML")
+    stamm_export_parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=None,
+        help="Optional output file path (prints to stdout if omitted)",
+    )
+    stamm_apply_parser = stamm_sub.add_parser(
+        "apply",
+        help="Validate and apply Stammdaten from a YAML or JSON file",
+    )
+    stamm_apply_parser.add_argument("file", type=Path, help="Path to YAML or JSON Stammdaten file")
 
     return parser
 
@@ -201,6 +224,45 @@ def handle_plan_sync(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def handle_stammdaten_summary(settings: Settings) -> int:
+    """Display the athlete Stammdaten table."""
+    init_db(settings.database_path)
+    with connect_db(settings.database_path) as conn:
+        rows = get_stammdaten(conn)
+        if not rows:
+            print("No Stammdaten configured.")
+            return 0
+        print(f"{'Category':<24} {'Parameter':<34} {'Value':<24} {'Unit / Range'}")
+        print("-" * 100)
+        for r in rows:
+            print(
+                f"{str(r['category'])[:23]:<24} "
+                f"{str(r['parameter'])[:33]:<34} "
+                f"{str(r['value'])[:23]:<24} "
+                f"{r.get('unit_or_range') or '-'}"
+            )
+    return 0
+
+
+def handle_stammdaten_export(args: argparse.Namespace, settings: Settings) -> int:
+    """Export Stammdaten to stdout or file."""
+    yaml_text = export_stammdaten_yaml(settings)
+    if args.output is not None:
+        args.output.write_text(yaml_text, encoding="utf-8")
+        print(f"Exported Stammdaten to {args.output}")
+    else:
+        print(yaml_text, end="")
+    return 0
+
+
+def handle_stammdaten_apply(args: argparse.Namespace, settings: Settings) -> int:
+    """Validate and apply a Stammdaten YAML/JSON file."""
+    entries = load_stammdaten_from_file(args.file)
+    count = apply_stammdaten(settings, entries)
+    print(f"Applied {count} Stammdaten rows.")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None, settings: Settings | None = None) -> int:
     """Entry point for the garmin_monitor CLI."""
     parser = build_parser()
@@ -222,6 +284,14 @@ def main(argv: Sequence[str] | None = None, settings: Settings | None = None) ->
                     return handle_plan_apply(args, resolved_settings)
                 case "sync":
                     return handle_plan_sync(args, resolved_settings)
+        case "stammdaten":
+            match args.stammdaten_command:
+                case "summary":
+                    return handle_stammdaten_summary(resolved_settings)
+                case "export":
+                    return handle_stammdaten_export(args, resolved_settings)
+                case "apply":
+                    return handle_stammdaten_apply(args, resolved_settings)
 
     parser.print_help(sys.stderr)
     return 1

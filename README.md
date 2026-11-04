@@ -72,7 +72,7 @@ python -m garmin_monitor plan apply plan.yaml
 python -m garmin_monitor plan export --format yaml
 ```
 
-See [AGENTS.md](file:///home/josef/Projects/garmin-monitor/AGENTS.md) for the complete YAML/JSON training plan schema and server AI workflow instructions.
+See [`docs/operations-and-cli-playbook.md`](./docs/operations-and-cli-playbook.md) for the complete YAML/JSON training plan and Stammdaten schema and server AI operational instructions, and [`AGENTS.md`](./AGENTS.md) for the repository structure and agent workflow guide.
 
 ---
 
@@ -85,7 +85,7 @@ SSH into `pepnet.at` (`ssh josef@pepnet.at`) and clone this repository into `/op
 ```bash
 sudo mkdir -p /opt/garmin-monitor
 sudo chown josef:josef /opt/garmin-monitor
-git clone https://github.com/josef/garmin-monitor.git /opt/garmin-monitor
+git clone https://github.com/PepiJK/garmin-monitor.git /opt/garmin-monitor
 cd /opt/garmin-monitor
 mkdir -p data/garmin_tokens
 ```
@@ -115,7 +115,7 @@ docker exec garmin-monitor python -m garmin_monitor sync --days 90
    ```bash
    docker exec -it caddy caddy hash-password
    ```
-2. Copy the snippet from [`deploy/Caddyfile.garmin.snippet`](file:///home/josef/Projects/garmin-monitor/deploy/Caddyfile.garmin.snippet) into `/opt/pepnet/caddy/Caddyfile` with your bcrypt hash.
+2. Copy the snippet from [`deploy/Caddyfile.garmin.snippet`](./deploy/Caddyfile.garmin.snippet) into `/opt/pepnet/caddy/Caddyfile` with your bcrypt hash.
 3. Reload Caddy without downtime:
    ```bash
    docker exec caddy caddy reload --config /etc/caddy/Caddyfile
@@ -123,7 +123,7 @@ docker exec garmin-monitor python -m garmin_monitor sync --days 90
 
 ### 4. Automated GitHub Release CD (`.github/workflows/cd.yml`)
 
-Publishing a GitHub Release triggers [`.github/workflows/cd.yml`](file:///home/josef/Projects/garmin-monitor/.github/workflows/cd.yml) on `ubuntu-latest`:
+Publishing a GitHub Release triggers [`.github/workflows/cd.yml`](./.github/workflows/cd.yml) on `ubuntu-latest`:
 1. Runs backend (`ruff`, `pytest` ≥ 80% coverage) and frontend (`eslint`, `prettier`, `ng test` ≥ 80% coverage) quality gates using `.python-version` and `frontend/package.json`.
 2. Builds the multi-stage Docker image and pushes `:latest` and `:<release-tag>` to `ghcr.io` using `GITHUB_TOKEN`.
 3. SSHes into `pepnet.at`, checks out the release tag in `/opt/garmin-monitor`, pulls the pre-built image from `ghcr.io` (zero image build RAM overhead on the 3.7 GiB host), restarts `garmin-monitor` via `docker compose up -d`, prunes old images, and verifies `/api/healthz`.

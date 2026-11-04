@@ -2,9 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { EChartsCoreOption } from 'echarts/core';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import { DailyHealthPoint } from '../../core/api/garmin-api.models';
+import { formatGermanShortDate } from '../../core/format/german-format';
 
 export function buildHrvBaselineChartOptions(series: DailyHealthPoint[]): EChartsCoreOption {
-  const dates = series.map((d) => d.date.slice(5));
+  const dates = series.map((d) => formatGermanShortDate(d.date));
   const baselineLow = series.map((d) => d.hrv_baseline_low ?? 0);
   const baselineSpan = series.map((d) => {
     if (d.hrv_baseline_low !== null && d.hrv_baseline_high !== null) {
@@ -16,26 +17,31 @@ export function buildHrvBaselineChartOptions(series: DailyHealthPoint[]): EChart
   const weekly = series.map((d) => d.hrv_weekly_avg);
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+    },
     legend: {
       top: 0,
-      textStyle: { color: '#475569', fontSize: 11 },
+      textStyle: { color: '#cbd5e1', fontSize: 11 },
       data: ['Nightly HRV', '7d Avg', 'Personal Baseline Band'],
     },
     grid: { left: 44, right: 20, top: 34, bottom: 28 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#CBD5E1' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#334155' } },
     },
     yAxis: {
       type: 'value',
       name: 'ms',
       scale: true,
-      nameTextStyle: { color: '#475569', fontSize: 11 },
-      axisLabel: { color: '#475569', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#E2E8F0' } },
+      nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b' } },
     },
     series: [
       {
@@ -54,8 +60,8 @@ export function buildHrvBaselineChartOptions(series: DailyHealthPoint[]): EChart
         stack: 'hrv-baseline-band',
         symbol: 'none',
         lineStyle: { opacity: 0 },
-        areaStyle: { color: 'rgba(13, 148, 136, 0.20)' },
-        itemStyle: { color: '#0D9488' },
+        areaStyle: { color: 'rgba(45, 212, 191, 0.22)' },
+        itemStyle: { color: '#2dd4bf' },
       },
       {
         name: '7d Avg',
@@ -63,8 +69,8 @@ export function buildHrvBaselineChartOptions(series: DailyHealthPoint[]): EChart
         data: weekly,
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: '#0284C7', width: 2, type: 'dashed' },
-        itemStyle: { color: '#0284C7' },
+        lineStyle: { color: '#38bdf8', width: 2, type: 'dashed' },
+        itemStyle: { color: '#38bdf8' },
       },
       {
         name: 'Nightly HRV',
@@ -72,15 +78,15 @@ export function buildHrvBaselineChartOptions(series: DailyHealthPoint[]): EChart
         data: nightly,
         smooth: false,
         symbolSize: 6,
-        lineStyle: { color: '#0F172A', width: 2.5 },
-        itemStyle: { color: '#0F172A' },
+        lineStyle: { color: '#f8fafc', width: 2.5 },
+        itemStyle: { color: '#f8fafc' },
       },
     ],
   };
 }
 
 export function buildSleepStagesChartOptions(series: DailyHealthPoint[]): EChartsCoreOption {
-  const dates = series.map((d) => d.date.slice(5));
+  const dates = series.map((d) => formatGermanShortDate(d.date));
   const deepHrs = series.map((d) => Number(((d.sleep_deep_min ?? 0) / 60).toFixed(2)));
   const remHrs = series.map((d) => Number(((d.sleep_rem_min ?? 0) / 60).toFixed(2)));
   const lightHrs = series.map((d) => Number(((d.sleep_light_min ?? 0) / 60).toFixed(2)));
@@ -88,34 +94,39 @@ export function buildSleepStagesChartOptions(series: DailyHealthPoint[]): EChart
   const scores = series.map((d) => d.sleep_score);
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+    },
     legend: {
       top: 0,
-      textStyle: { color: '#475569', fontSize: 11 },
+      textStyle: { color: '#cbd5e1', fontSize: 11 },
       data: ['Deep', 'REM', 'Light', 'Awake', 'Sleep Score'],
     },
     grid: { left: 44, right: 44, top: 34, bottom: 28 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#CBD5E1' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#334155' } },
     },
     yAxis: [
       {
         type: 'value',
-        name: 'hours',
-        nameTextStyle: { color: '#475569', fontSize: 11 },
-        axisLabel: { color: '#475569', fontSize: 11 },
-        splitLine: { lineStyle: { color: '#E2E8F0' } },
+        name: 'hrs',
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#1e293b' } },
       },
       {
         type: 'value',
-        name: 'score',
+        name: 'Score',
         min: 0,
         max: 100,
-        nameTextStyle: { color: '#475569', fontSize: 11 },
-        axisLabel: { color: '#475569', fontSize: 11 },
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
         splitLine: { show: false },
       },
     ],
@@ -125,28 +136,28 @@ export function buildSleepStagesChartOptions(series: DailyHealthPoint[]): EChart
         type: 'bar',
         stack: 'sleep-stages',
         data: deepHrs,
-        itemStyle: { color: '#1E3A8A' },
+        itemStyle: { color: '#3b82f6' },
       },
       {
         name: 'REM',
         type: 'bar',
         stack: 'sleep-stages',
         data: remHrs,
-        itemStyle: { color: '#0284C7' },
+        itemStyle: { color: '#0ea5e9' },
       },
       {
         name: 'Light',
         type: 'bar',
         stack: 'sleep-stages',
         data: lightHrs,
-        itemStyle: { color: '#7DD3FC' },
+        itemStyle: { color: '#7dd3fc' },
       },
       {
         name: 'Awake',
         type: 'bar',
         stack: 'sleep-stages',
         data: awakeHrs,
-        itemStyle: { color: '#F59E0B' },
+        itemStyle: { color: '#fbbf24' },
       },
       {
         name: 'Sleep Score',
@@ -155,48 +166,55 @@ export function buildSleepStagesChartOptions(series: DailyHealthPoint[]): EChart
         data: scores,
         smooth: true,
         symbolSize: 5,
-        lineStyle: { color: '#0F172A', width: 2 },
-        itemStyle: { color: '#0F172A' },
+        lineStyle: { color: '#f8fafc', width: 2 },
+        itemStyle: { color: '#f8fafc' },
       },
     ],
   };
 }
 
 export function buildRhrStressChartOptions(series: DailyHealthPoint[]): EChartsCoreOption {
-  const dates = series.map((d) => d.date.slice(5));
+  const dates = series.map((d) => formatGermanShortDate(d.date));
   const rhr = series.map((d) => d.resting_hr);
-  const stress = series.map((d) => d.stress_avg);
+  const stress = series.map((d) =>
+    d.stress_avg !== null && d.stress_avg >= 0 ? d.stress_avg : null,
+  );
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+    },
     legend: {
       top: 0,
-      textStyle: { color: '#475569', fontSize: 11 },
+      textStyle: { color: '#cbd5e1', fontSize: 11 },
       data: ['Resting HR (bpm)', 'Avg Stress'],
     },
     grid: { left: 44, right: 44, top: 34, bottom: 28 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#CBD5E1' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#334155' } },
     },
     yAxis: [
       {
         type: 'value',
         name: 'bpm',
         scale: true,
-        nameTextStyle: { color: '#475569', fontSize: 11 },
-        axisLabel: { color: '#475569', fontSize: 11 },
-        splitLine: { lineStyle: { color: '#E2E8F0' } },
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#1e293b' } },
       },
       {
         type: 'value',
-        name: 'stress',
+        name: 'Stress',
         min: 0,
         max: 100,
-        nameTextStyle: { color: '#475569', fontSize: 11 },
-        axisLabel: { color: '#475569', fontSize: 11 },
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
         splitLine: { show: false },
       },
     ],
@@ -207,8 +225,8 @@ export function buildRhrStressChartOptions(series: DailyHealthPoint[]): EChartsC
         data: rhr,
         smooth: true,
         symbolSize: 5,
-        lineStyle: { color: '#DC2626', width: 2 },
-        itemStyle: { color: '#DC2626' },
+        lineStyle: { color: '#f87171', width: 2 },
+        itemStyle: { color: '#f87171' },
       },
       {
         name: 'Avg Stress',
@@ -217,39 +235,44 @@ export function buildRhrStressChartOptions(series: DailyHealthPoint[]): EChartsC
         data: stress,
         smooth: true,
         symbolSize: 5,
-        lineStyle: { color: '#D97706', width: 2 },
-        itemStyle: { color: '#D97706' },
+        lineStyle: { color: '#fbbf24', width: 2 },
+        itemStyle: { color: '#fbbf24' },
       },
     ],
   };
 }
 
 export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): EChartsCoreOption {
-  const dates = series.map((d) => d.date.slice(5));
+  const dates = series.map((d) => formatGermanShortDate(d.date));
   const bbHigh = series.map((d) => d.body_battery_high);
   const bbLow = series.map((d) => d.body_battery_low);
   const readiness = series.map((d) => d.training_readiness_score);
 
   return {
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+    },
     legend: {
       top: 0,
-      textStyle: { color: '#475569', fontSize: 11 },
+      textStyle: { color: '#cbd5e1', fontSize: 11 },
       data: ['Body Battery High', 'Body Battery Low', 'Training Readiness'],
     },
     grid: { left: 44, right: 20, top: 34, bottom: 28 },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#CBD5E1' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#334155' } },
     },
     yAxis: {
       type: 'value',
       min: 0,
       max: 100,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#E2E8F0' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b' } },
     },
     series: [
       {
@@ -258,8 +281,8 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         data: bbHigh,
         smooth: true,
         symbolSize: 5,
-        lineStyle: { color: '#0D9488', width: 2 },
-        itemStyle: { color: '#0D9488' },
+        lineStyle: { color: '#2dd4bf', width: 2 },
+        itemStyle: { color: '#2dd4bf' },
       },
       {
         name: 'Body Battery Low',
@@ -267,8 +290,8 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         data: bbLow,
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: '#94A3B8', width: 1.5, type: 'dashed' },
-        itemStyle: { color: '#94A3B8' },
+        lineStyle: { color: '#94a3b8', width: 1.5, type: 'dashed' },
+        itemStyle: { color: '#94a3b8' },
       },
       {
         name: 'Training Readiness',
@@ -276,8 +299,8 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         data: readiness,
         smooth: true,
         symbolSize: 5,
-        lineStyle: { color: '#0284C7', width: 2 },
-        itemStyle: { color: '#0284C7' },
+        lineStyle: { color: '#38bdf8', width: 2 },
+        itemStyle: { color: '#38bdf8' },
       },
     ],
   };
@@ -287,16 +310,17 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
   selector: 'app-health-charts',
   imports: [NgxEchartsDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
     <section
       aria-label="Physiological recovery trend charts"
       class="grid grid-cols-1 gap-6 lg:grid-cols-2"
     >
-      <div class="rounded-lg border border-slate-200 bg-white p-5">
-        <h3 class="text-sm font-semibold text-slate-900">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
+        <h3 class="text-sm font-semibold text-slate-100">
           HRV trend &amp; personal baseline corridor
         </h3>
-        <p class="mb-3 text-xs text-slate-500">
+        <p class="mb-3 text-xs text-slate-400">
           Nightly HRV (ms) overlaid on shaded personal balanced range
         </p>
         <div
@@ -308,11 +332,11 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         ></div>
       </div>
 
-      <div class="rounded-lg border border-slate-200 bg-white p-5">
-        <h3 class="text-sm font-semibold text-slate-900">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
+        <h3 class="text-sm font-semibold text-slate-100">
           Sleep score &amp; sleep stage architecture
         </h3>
-        <p class="mb-3 text-xs text-slate-500">
+        <p class="mb-3 text-xs text-slate-400">
           Stacked Deep, REM, Light, and Awake hours with overall Sleep Score
         </p>
         <div
@@ -324,9 +348,9 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         ></div>
       </div>
 
-      <div class="rounded-lg border border-slate-200 bg-white p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Resting heart rate &amp; daily stress</h3>
-        <p class="mb-3 text-xs text-slate-500">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
+        <h3 class="text-sm font-semibold text-slate-100">Resting heart rate &amp; daily stress</h3>
+        <p class="mb-3 text-xs text-slate-400">
           Morning resting heart rate (bpm) and all-day physiological stress
         </p>
         <div
@@ -338,9 +362,9 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         ></div>
       </div>
 
-      <div class="rounded-lg border border-slate-200 bg-white p-5">
-        <h3 class="text-sm font-semibold text-slate-900">Body Battery &amp; Training Readiness</h3>
-        <p class="mb-3 text-xs text-slate-500">
+      <div class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
+        <h3 class="text-sm font-semibold text-slate-100">Body Battery &amp; Training Readiness</h3>
+        <p class="mb-3 text-xs text-slate-400">
           Peak/trough Body Battery reserve and morning readiness score
         </p>
         <div

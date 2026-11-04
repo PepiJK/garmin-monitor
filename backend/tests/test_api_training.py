@@ -42,9 +42,17 @@ def test_api_training_dashboard_and_plan(
                 distance_m=9000.0,
                 avg_hr=146,
                 max_hr=162,
+                avg_speed_mps=3.3333333,
                 calories=580,
+                elevation_gain_m=42.0,
+                aerobic_te=3.2,
+                anaerobic_te=0.4,
                 training_load=95.0,
-                raw_json="{}",
+                raw_json=(
+                    '{"averageRunningCadenceInStepsPerMinute": 168.4, '
+                    '"maxRunningCadenceInStepsPerMinute": 184.0, '
+                    '"avgStrideLength": 118.5, "avgPower": 240.0, "steps": 7560}'
+                ),
                 synced_at="2026-11-03T08:00:00Z",
             ),
         )
@@ -116,8 +124,13 @@ def test_api_training_dashboard_and_plan(
         assert len(plan_json["days"]) == 2
         assert plan_json["days"][0]["status"] == "done"
         assert plan_json["days"][0]["actual_km"] == 9.0
+        assert plan_json["days"][0]["actual_pace_min_per_km"] == "05:00"
         assert plan_json["days"][1]["status"] == "done"
         assert plan_json["days"][1]["actual_duration_min"] == 40.0
+
+        stamm_resp = client.get("/api/training/stammdaten")
+        assert stamm_resp.status_code == 200
+        assert stamm_resp.json()["items"] == []
 
         monkeypatch.setattr(
             training_api,
@@ -127,3 +140,25 @@ def test_api_training_dashboard_and_plan(
         sync_resp = client.post("/api/training/plan/sync")
         assert sync_resp.status_code == 200
         assert sync_resp.json() == {"uploaded_workouts": 3}
+
+        dash_days_resp = client.get(
+            "/api/training/dashboard",
+            params={"days": 7, "reference_date": "2026-11-03"},
+        )
+        assert dash_days_resp.status_code == 200
+        dash_days = dash_days_resp.json()
+        assert dash_days["days_requested"] == 7
+        assert dash_days["ran_km_window"] == 9.0
+        assert dash_days["strength_minutes_window"] == 40.0
+        assert dash_days["completed_workouts_window"] == 2
+        assert len(dash_days["window_activities"]) == 2
+        run_item = next(a for a in dash_days["window_activities"] if a["sport_type"] == "running")
+        assert run_item["avg_pace_min_per_km"] == "5:00"
+        assert run_item["avg_cadence_spm"] == 168
+        assert run_item["max_cadence_spm"] == 184
+        assert run_item["avg_stride_m"] == 1.19
+        assert run_item["avg_power_w"] == 240
+        assert run_item["elevation_gain_m"] == 42.0
+        assert run_item["aerobic_te"] == 3.2
+        assert run_item["anaerobic_te"] == 0.4
+        assert run_item["steps"] == 7560

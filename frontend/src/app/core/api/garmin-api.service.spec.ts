@@ -79,7 +79,7 @@ describe('GarminApiService', () => {
       error_message: null,
       timezone: 'Europe/Vienna',
     });
-    httpMock.expectOne('/api/training/dashboard?weeks=12').flush({
+    httpMock.expectOne('/api/training/dashboard?days=30').flush({
       reference_date: '2026-11-03',
       current_week_start: '2026-11-02',
       current_week_end: '2026-11-08',

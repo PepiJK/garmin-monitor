@@ -1,20 +1,36 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { PlanDayItem, PlanDayStatus, TrainingPlanResponse } from '../../core/api/garmin-api.models';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  HealthDayWindow,
+  PlanDayItem,
+  PlanDayStatus,
+  TrainingPlanResponse,
+} from '../../core/api/garmin-api.models';
+import {
+  formatGermanDate,
+  formatGermanDateWithWeekday,
+  formatGermanNumber,
+  formatGermanWeekdayFull,
+} from '../../core/format/german-format';
+import { StickyTableHeaderDirective } from '../../shared/directives/sticky-table-header.directive';
 
 @Component({
   selector: 'app-training-plan-tab',
+  imports: [StickyTableHeaderDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
-    <div class="space-y-6">
+    <div class="flex flex-col gap-6">
       <!-- Plan Header & Summary -->
-      <section class="rounded-lg border border-slate-200 bg-white p-5">
+      <section class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
         @if (!plan()?.has_active_plan) {
           <div class="py-6 text-center" data-testid="no-active-plan">
-            <h2 class="text-base font-semibold text-slate-900">No active training plan</h2>
-            <p class="mt-1 text-sm text-slate-600">
+            <h2 class="text-base font-semibold text-slate-100">No active training plan</h2>
+            <p class="mt-1 text-sm text-slate-400">
               Apply a training plan on the server using
-              <code class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800">
-                python -m garmin_monitor plan apply plan.yaml
+              <code
+                class="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 font-mono text-xs text-sky-300"
+              >
+                python -m garmin_monitor plan apply data/plan.yaml
               </code>
               to schedule Fenix 7S workouts and track daily goals.
             </p>
@@ -22,32 +38,49 @@ import { PlanDayItem, PlanDayStatus, TrainingPlanResponse } from '../../core/api
         } @else {
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div class="flex items-center gap-3">
-                <h2 class="text-lg font-semibold text-slate-900" data-testid="plan-title">
+              <div class="flex flex-wrap items-center gap-3">
+                <h2 class="text-lg font-semibold text-slate-100" data-testid="plan-title">
                   {{ plan()?.name }}
                 </h2>
-                <span class="rounded bg-slate-100 px-2.5 py-0.5 font-mono text-xs text-slate-700">
-                  {{ plan()?.start_date }} .. {{ plan()?.end_date }}
+                <span
+                  class="rounded border border-slate-700 bg-slate-950 px-2.5 py-0.5 font-mono text-xs text-slate-300"
+                >
+                  {{ formatDate(plan()?.start_date) }} – {{ formatDate(plan()?.end_date) }}
+                </span>
+                <span
+                  class="rounded border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 font-mono text-xs font-semibold text-sky-300"
+                >
+                  {{ displayedDays().length }} Tage
                 </span>
               </div>
               @if (plan()?.notes) {
-                <p class="mt-1 text-sm text-slate-600">{{ plan()?.notes }}</p>
+                <p class="mt-1 text-sm text-slate-400">{{ plan()?.notes }}</p>
               }
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
-              <div class="flex items-center gap-2 text-xs font-medium">
-                <span class="rounded bg-teal-50 px-2.5 py-1 text-teal-800">
-                  Done: {{ statusCounts().done }}
+              <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
+                <span
+                  class="rounded border border-teal-500/30 bg-teal-500/15 px-2.5 py-1 text-teal-300"
+                >
+                  Erledigt: {{ statusCounts().done }}
                 </span>
-                <span class="rounded bg-amber-50 px-2.5 py-1 text-amber-800">
-                  Partial: {{ statusCounts().partial }}
+                @if (statusCounts().partial > 0) {
+                  <span
+                    class="rounded border border-amber-500/30 bg-amber-500/15 px-2.5 py-1 text-amber-300"
+                  >
+                    Teilweise: {{ statusCounts().partial }}
+                  </span>
+                }
+                <span
+                  class="rounded border border-red-500/30 bg-red-500/15 px-2.5 py-1 text-red-300"
+                >
+                  Ausgefallen: {{ statusCounts().missed }}
                 </span>
-                <span class="rounded bg-red-50 px-2.5 py-1 text-red-800">
-                  Missed: {{ statusCounts().missed }}
-                </span>
-                <span class="rounded bg-sky-50 px-2.5 py-1 text-sky-800">
-                  Pending: {{ statusCounts().pending }}
+                <span
+                  class="rounded border border-sky-500/30 bg-sky-500/15 px-2.5 py-1 text-sky-300"
+                >
+                  Offen: {{ statusCounts().pending }}
                 </span>
               </div>
 
@@ -55,7 +88,7 @@ import { PlanDayItem, PlanDayStatus, TrainingPlanResponse } from '../../core/api
                 type="button"
                 (click)="syncPlan.emit()"
                 data-testid="sync-plan-watch-btn"
-                class="cursor-pointer rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                class="cursor-pointer rounded-md border border-sky-500/40 bg-sky-500/15 px-3 py-1.5 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500 hover:text-slate-950"
               >
                 Sync plan to watch
               </button>
@@ -64,90 +97,316 @@ import { PlanDayItem, PlanDayStatus, TrainingPlanResponse } from '../../core/api
         }
       </section>
 
-      <!-- Structured Daily Plan Table -->
+      <!-- Structured Daily Plan Table (Sheet Layout) -->
       @if (plan()?.has_active_plan) {
-        <section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div class="overflow-x-auto">
+        <section class="overflow-hidden rounded-lg border border-slate-800 bg-slate-900/90">
+          <div class="relative overflow-auto">
             <table
               class="w-full border-collapse text-left text-sm"
               data-testid="training-plan-table"
             >
-              <thead>
+              <thead appStickyHeader class="sticky top-0 z-20 bg-emerald-950">
                 <tr
-                  class="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600"
+                  class="border-b border-slate-800 bg-emerald-950 text-xs font-semibold tracking-wide text-emerald-100 shadow-[inset_0_-1px_0_0_#1e293b]"
                 >
-                  <th class="px-4 py-3">Date</th>
-                  <th class="px-4 py-3">Type</th>
-                  <th class="px-4 py-3">Workout / Focus</th>
-                  <th class="px-4 py-3 text-right">Goal (km / min)</th>
-                  <th class="px-4 py-3">HR Goal</th>
-                  <th class="px-4 py-3 text-right">Actual (km / min)</th>
-                  <th class="px-4 py-3 text-right">Actual Avg / Max HR</th>
-                  <th class="px-4 py-3 text-center">Status</th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    DATUM
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    TAG
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    KATEGORIE
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    EINHEIT / FOKUS
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Zone
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    BPM
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    MIN
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 min-w-[260px] bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    TRAININGSDETAILS &amp; VORGABEN
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-left shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    STATUS
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    IST MN
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    IST KM
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    AVG / MAX BPM
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    AVG PACE (MIN/KM)
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    SPM
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    LOAD
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    TE (AER/ANA)
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    WATT
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    KCAL
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-emerald-950 px-3 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    RPE
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 min-w-[260px] bg-emerald-950 px-3 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    NOTIZEN / GEFÜHL
+                  </th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-200 text-xs">
-                @for (day of plan()?.days ?? []; track day.date) {
-                  <tr class="hover:bg-slate-50/80" [attr.data-testid]="'plan-row-' + day.date">
-                    <td class="whitespace-nowrap px-4 py-3 font-mono tabular-nums text-slate-800">
-                      {{ day.date }}
+              <tbody class="relative z-0 divide-y divide-slate-800/80 text-xs">
+                @for (day of displayedDays(); track day.date) {
+                  <tr [class]="rowClass(day)" [attr.data-testid]="'plan-row-' + day.date">
+                    <!-- DATUM -->
+                    <td
+                      class="relative whitespace-nowrap px-3 py-2.5 font-mono tabular-nums text-slate-200"
+                    >
+                      <span>{{ day.date }}</span>
+                      <span class="sr-only"> {{ formatDateWithWeekday(day.date) }}</span>
                     </td>
-                    <td class="whitespace-nowrap px-4 py-3">
+
+                    <!-- TAG -->
+                    <td class="whitespace-nowrap px-3 py-2.5">
+                      <span [class]="weekdayBadgeClass(day.date)">
+                        {{ formatWeekdayFull(day.date) }}
+                      </span>
+                    </td>
+
+                    <!-- KATEGORIE -->
+                    <td class="whitespace-nowrap px-3 py-2.5">
                       @switch (day.sport_type) {
                         @case ('running') {
                           <span
-                            class="inline-flex items-center rounded bg-sky-50 px-2 py-0.5 font-medium text-sky-700"
+                            class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/15 px-2.5 py-0.5 font-medium text-amber-200"
                           >
-                            Running
+                            Laufen
                           </span>
                         }
                         @case ('strength_training') {
                           <span
-                            class="inline-flex items-center rounded bg-teal-50 px-2 py-0.5 font-medium text-teal-700"
+                            class="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/15 px-2.5 py-0.5 font-medium text-sky-200"
                           >
-                            Strength
+                            Kraft
                           </span>
                         }
                         @default {
                           <span
-                            class="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-600"
+                            class="inline-flex items-center rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 font-medium text-slate-300"
                           >
-                            Rest
+                            Regeneration
                           </span>
                         }
                       }
                     </td>
-                    <td class="px-4 py-3">
-                      <div class="font-medium text-slate-900">{{ day.workout_title }}</div>
-                      @if (day.focus) {
-                        <div class="mt-0.5 text-slate-500">{{ day.focus }}</div>
+
+                    <!-- EINHEIT / FOKUS -->
+                    <td class="whitespace-nowrap px-3 py-2.5 font-medium text-slate-100">
+                      {{ day.workout_title }}
+                    </td>
+
+                    <!-- Zone -->
+                    <td class="whitespace-nowrap px-3 py-2.5 text-slate-300">
+                      {{ formatZoneLabel(day) }}
+                    </td>
+
+                    <!-- BPM -->
+                    <td class="whitespace-nowrap px-3 py-2.5 font-mono tabular-nums text-slate-300">
+                      {{ formatBpmRange(day) }}
+                    </td>
+
+                    <!-- MIN -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
+                    >
+                      {{ formatGoalMin(day) }}
+                    </td>
+
+                    <!-- TRAININGSDETAILS & VORGABEN -->
+                    <td class="px-3 py-2.5 text-slate-300">
+                      {{ day.focus || '' }}
+                    </td>
+
+                    <!-- STATUS -->
+                    <td class="relative whitespace-nowrap px-3 py-2.5 text-left">
+                      <div class="inline-flex items-center gap-1.5">
+                        <span
+                          [class]="statusBadgeClass(day)"
+                          [attr.data-testid]="'status-badge-' + day.status"
+                        >
+                          {{ formatStatusLabel(day) }}
+                          <span class="sr-only"> {{ day.status }}</span>
+                        </span>
+                        @if (day.garmin_workout_id) {
+                          <span
+                            class="rounded border border-sky-500/30 bg-slate-950 px-1 py-0.5 font-mono text-[10px] text-sky-400"
+                            title="Scheduled on Fenix 7S watch calendar"
+                          >
+                            F7S
+                          </span>
+                        }
+                      </div>
+                    </td>
+
+                    <!-- IST MN -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-100"
+                    >
+                      {{ formatActualMin(day) }}
+                    </td>
+
+                    <!-- IST KM -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-100"
+                    >
+                      {{ formatActualKm(day) }}
+                    </td>
+
+                    <!-- AVG / MAX BPM -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
+                    >
+                      @if (day.actual_avg_hr !== null) {
+                        <span>{{ day.actual_avg_hr }}</span>
+                        @if (day.actual_max_hr !== null) {
+                          <span class="text-slate-500"> / {{ day.actual_max_hr }}</span>
+                        }
                       }
                     </td>
+
+                    <!-- AVG PACE (MIN/KM) -->
                     <td
-                      class="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-slate-700"
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
                     >
-                      {{ formatGoal(day) }}
+                      {{ formatActualPace(day) }}
                     </td>
-                    <td class="whitespace-nowrap px-4 py-3 font-mono tabular-nums text-slate-600">
-                      {{ formatHrGoal(day) }}
-                    </td>
+
+                    <!-- SPM -->
                     <td
-                      class="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-slate-900"
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
                     >
-                      {{ formatActual(day) }}
+                      {{ formatCadence(day) }}
                     </td>
+
+                    <!-- LOAD -->
                     <td
-                      class="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-slate-700"
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
                     >
-                      {{ formatActualHr(day) }}
+                      {{ formatLoad(day) }}
                     </td>
-                    <td class="whitespace-nowrap px-4 py-3 text-center">
-                      <span
-                        [class]="statusBadgeClass(day.status)"
-                        [attr.data-testid]="'status-badge-' + day.status"
-                      >
-                        {{ day.status }}
-                      </span>
+
+                    <!-- TE (AER/ANA) -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-300"
+                    >
+                      {{ formatTrainingEffect(day) }}
+                    </td>
+
+                    <!-- WATT -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
+                    >
+                      {{
+                        day.actual_power_w !== null && day.actual_power_w !== undefined
+                          ? day.actual_power_w
+                          : ''
+                      }}
+                    </td>
+
+                    <!-- KCAL -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-300"
+                    >
+                      {{
+                        day.actual_calories !== null && day.actual_calories !== undefined
+                          ? day.actual_calories
+                          : ''
+                      }}
+                    </td>
+
+                    <!-- RPE -->
+                    <td
+                      class="whitespace-nowrap px-3 py-2.5 text-right font-mono tabular-nums text-slate-200"
+                    >
+                      {{ day.rpe !== null && day.rpe !== undefined ? day.rpe : '' }}
+                    </td>
+
+                    <!-- NOTIZEN / GEFÜHL (Editable, saves on blur) -->
+                    <td class="min-w-[260px] px-2 py-1.5">
+                      <div class="grid">
+                        <div
+                          aria-hidden="true"
+                          class="pointer-events-none invisible col-start-1 row-start-1 w-full min-w-[240px] whitespace-pre-wrap break-words rounded border border-transparent px-2 py-1 font-sans text-xs leading-relaxed"
+                        >
+                          {{ ((draftNotes()[day.date] ?? day.notes) || ' ') + ' ' }}
+                        </div>
+                        <textarea
+                          rows="1"
+                          [value]="day.notes ?? ''"
+                          (input)="onNotesInput(day.date, $event)"
+                          (blur)="onNotesBlur(day, $event)"
+                          [attr.aria-label]="'Notizen für ' + day.date"
+                          [attr.data-testid]="'notes-input-' + day.date"
+                          placeholder="Notiz eingeben..."
+                          class="col-start-1 row-start-1 h-full w-full min-w-[240px] resize-none overflow-hidden rounded border border-transparent bg-transparent px-2 py-1 font-sans text-xs leading-relaxed text-slate-200 placeholder-slate-600 transition-colors [field-sizing:content] hover:border-slate-700/80 hover:bg-slate-950/60 focus:border-sky-500/60 focus:bg-slate-950 focus:outline-none"
+                        ></textarea>
+                      </div>
                     </td>
                   </tr>
                 }
@@ -161,7 +420,35 @@ import { PlanDayItem, PlanDayStatus, TrainingPlanResponse } from '../../core/api
 })
 export class TrainingPlanTabComponent {
   readonly plan = input<TrainingPlanResponse | null>(null);
+  readonly selectedDays = input<HealthDayWindow>(30);
   readonly syncPlan = output<void>();
+  readonly updateNotes = output<{ date: string; notes: string }>();
+  readonly draftNotes = signal<Record<string, string>>({});
+
+  readonly displayedDays = computed<PlanDayItem[]>(() => {
+    return this.plan()?.days ?? [];
+  });
+
+  onNotesInput(date: string, event: Event): void {
+    const target = event.target as HTMLTextAreaElement | null;
+    if (!target) {
+      return;
+    }
+    this.draftNotes.update((prev) => ({ ...prev, [date]: target.value }));
+  }
+
+  onNotesBlur(day: PlanDayItem, event: Event): void {
+    const target = event.target as HTMLTextAreaElement | null;
+    if (!target) {
+      return;
+    }
+    const nextNotes = target.value.trim();
+    const prevNotes = (day.notes ?? '').trim();
+    this.draftNotes.update((prev) => ({ ...prev, [day.date]: nextNotes }));
+    if (nextNotes !== prevNotes) {
+      this.updateNotes.emit({ date: day.date, notes: nextNotes });
+    }
+  }
 
   readonly statusCounts = computed(() => {
     const counts: Record<PlanDayStatus, number> = {
@@ -171,65 +458,167 @@ export class TrainingPlanTabComponent {
       pending: 0,
       rest: 0,
     };
-    for (const d of this.plan()?.days ?? []) {
+    for (const d of this.displayedDays()) {
       counts[d.status] = (counts[d.status] ?? 0) + 1;
     }
     return counts;
   });
 
-  formatGoal(day: PlanDayItem): string {
-    const parts: string[] = [];
-    if (day.goal_km !== null) {
-      parts.push(`${day.goal_km.toFixed(1)} km`);
-    }
-    if (day.goal_duration_min !== null) {
-      parts.push(`${day.goal_duration_min.toFixed(0)} min`);
-    }
-    return parts.length > 0 ? parts.join(' / ') : '-';
+  formatDate(isoDate: string | null | undefined): string {
+    return formatGermanDate(isoDate);
   }
 
-  formatHrGoal(day: PlanDayItem): string {
-    if (day.hr_goal_label) {
-      return day.hr_goal_label;
+  formatDateWithWeekday(isoDate: string | null | undefined): string {
+    return formatGermanDateWithWeekday(isoDate);
+  }
+
+  formatWeekdayFull(isoDate: string | null | undefined): string {
+    return formatGermanWeekdayFull(isoDate);
+  }
+
+  formatZoneLabel(day: PlanDayItem): string {
+    if (!day.hr_goal_label) {
+      return '';
     }
+    if (/^\d+\s*-\s*\d+\s*bpm$/i.test(day.hr_goal_label.trim())) {
+      return '';
+    }
+    return day.hr_goal_label;
+  }
+
+  formatBpmRange(day: PlanDayItem): string {
     if (day.hr_min !== null && day.hr_max !== null) {
-      return `${day.hr_min}-${day.hr_max} bpm`;
+      return `${day.hr_min} - ${day.hr_max}`;
     }
-    return '-';
+    return '';
   }
 
-  formatActual(day: PlanDayItem): string {
-    const parts: string[] = [];
-    if (day.actual_km !== null && day.actual_km > 0) {
-      parts.push(`${day.actual_km.toFixed(1)} km`);
+  formatGoalMin(day: PlanDayItem): string {
+    if (day.goal_duration_min !== null && day.goal_duration_min !== undefined) {
+      return formatGermanNumber(day.goal_duration_min, 0);
     }
+    if (day.goal_km !== null && day.goal_km !== undefined) {
+      return `${formatGermanNumber(day.goal_km, 1)} km`;
+    }
+    return '';
+  }
+
+  formatActualMin(day: PlanDayItem): string {
     if (day.actual_duration_min !== null && day.actual_duration_min > 0) {
-      parts.push(`${day.actual_duration_min.toFixed(0)} min`);
+      return formatGermanNumber(day.actual_duration_min, 0);
     }
-    return parts.length > 0 ? parts.join(' / ') : '-';
+    return '';
   }
 
-  formatActualHr(day: PlanDayItem): string {
-    if (day.actual_avg_hr === null && day.actual_max_hr === null) {
-      return '-';
+  formatActualKm(day: PlanDayItem): string {
+    if (day.actual_km !== null && day.actual_km > 0) {
+      return formatGermanNumber(day.actual_km, 2);
     }
-    return `${day.actual_avg_hr ?? '-'} / ${day.actual_max_hr ?? '-'} bpm`;
+    return '';
   }
 
-  statusBadgeClass(status: PlanDayStatus): string {
-    const base =
-      'inline-flex items-center rounded-full px-2.5 py-0.5 font-mono text-xs font-semibold';
-    switch (status) {
+  formatActualPace(day: PlanDayItem): string {
+    if (day.actual_pace_min_per_km) {
+      return day.actual_pace_min_per_km;
+    }
+    if (
+      day.sport_type === 'running' &&
+      day.actual_km &&
+      day.actual_km > 0 &&
+      day.actual_duration_min &&
+      day.actual_duration_min > 0
+    ) {
+      const sec = Math.round((day.actual_duration_min * 60) / day.actual_km);
+      if (sec >= 60 && sec <= 3600) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      }
+    }
+    return '';
+  }
+
+  formatCadence(day: PlanDayItem): string {
+    if (
+      day.actual_cadence_spm !== null &&
+      day.actual_cadence_spm !== undefined &&
+      day.actual_cadence_spm > 0
+    ) {
+      return `${day.actual_cadence_spm}`;
+    }
+    return '';
+  }
+
+  formatLoad(day: PlanDayItem): string {
+    if (day.actual_training_load !== null && day.actual_training_load !== undefined) {
+      return formatGermanNumber(day.actual_training_load, 0);
+    }
+    return '';
+  }
+
+  formatTrainingEffect(day: PlanDayItem): string {
+    if (day.actual_aerobic_te === null || day.actual_aerobic_te === undefined) {
+      return '';
+    }
+    const aer = formatGermanNumber(day.actual_aerobic_te, 1);
+    if (day.actual_anaerobic_te !== null && day.actual_anaerobic_te !== undefined) {
+      const ana = formatGermanNumber(day.actual_anaerobic_te, 1);
+      return `${aer} / ${ana}`;
+    }
+    return aer;
+  }
+
+  formatStatusLabel(day: PlanDayItem): string {
+    switch (day.status) {
       case 'done':
-        return `${base} bg-teal-100 text-teal-900`;
+        return 'Erledigt';
       case 'partial':
-        return `${base} bg-amber-100 text-amber-900`;
+        return 'Teilweise';
       case 'missed':
-        return `${base} bg-red-100 text-red-900`;
+        return 'Ausgefallen';
       case 'pending':
-        return `${base} bg-sky-100 text-sky-900`;
-      case 'rest':
-        return `${base} bg-slate-100 text-slate-700`;
+        return 'Offen';
+      case 'rest': {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        return day.date < todayIso ? 'Erledigt' : 'Offen';
+      }
     }
+  }
+
+  rowClass(day: PlanDayItem): string {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (day.date === todayIso) {
+      return 'bg-sky-950/35 transition-colors hover:bg-sky-950/50';
+    }
+    return 'transition-colors hover:bg-slate-800/50';
+  }
+
+  weekdayBadgeClass(isoDate: string): string {
+    const name = formatGermanWeekdayFull(isoDate);
+    const base = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium';
+    switch (name) {
+      case 'Montag':
+      case 'Freitag':
+      case 'Sonntag':
+        return `${base} bg-emerald-500/15 text-emerald-300`;
+      default:
+        return `${base} bg-sky-500/15 text-sky-300`;
+    }
+  }
+
+  statusBadgeClass(day: PlanDayItem): string {
+    const base =
+      'inline-flex items-center rounded-full border px-2.5 py-0.5 font-mono text-xs font-semibold';
+    const label = this.formatStatusLabel(day);
+    if (label === 'Erledigt') {
+      return `${base} border-teal-500/40 bg-teal-500/15 text-teal-300`;
+    }
+    if (label === 'Teilweise') {
+      return `${base} border-amber-500/40 bg-amber-500/15 text-amber-300`;
+    }
+    if (label === 'Ausgefallen') {
+      return `${base} border-red-500/40 bg-red-500/15 text-red-300`;
+    }
+    return `${base} border-slate-700 bg-slate-800 text-slate-300`;
   }
 }

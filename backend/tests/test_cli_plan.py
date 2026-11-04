@@ -27,6 +27,12 @@ def test_cli_plan_apply_summary_export_and_sync(
         """
 name: "CLI Test Plan"
 notes: "Preparing for 10K"
+stammdaten:
+  - category: "Athleten-Profil"
+    parameter: "Name"
+    value: "Josef Koch"
+    unit_or_range: "-"
+    reference_note: "Sportordination"
 days:
   - date: "2026-11-02"
     sport_type: "running"
@@ -34,6 +40,8 @@ days:
     goal_km: 8.0
     hr_min: 135
     hr_max: 148
+    rpe: 6
+    notes: "Good aerobic run"
   - date: "2026-11-03"
     sport_type: "strength_training"
     workout_title: "Core & Kettlebell"
@@ -54,6 +62,16 @@ days:
     assert "CLI Test Plan" in summary_out
     assert "Easy 8K" in summary_out
     assert "Core & Kettlebell" in summary_out
+
+    assert main(["stammdaten", "summary"], settings=settings) == 0
+    stamm_out = capsys.readouterr().out
+    assert "Josef Koch" in stamm_out
+
+    stamm_export = tmp_path / "stamm.yaml"
+    assert main(["stammdaten", "export", "--output", str(stamm_export)], settings=settings) == 0
+    assert "Josef Koch" in stamm_export.read_text(encoding="utf-8")
+    assert main(["stammdaten", "apply", str(stamm_export)], settings=settings) == 0
+    capsys.readouterr()
 
     export_file = tmp_path / "exported.yaml"
     assert main(["plan", "export", "--output", str(export_file)], settings=settings) == 0

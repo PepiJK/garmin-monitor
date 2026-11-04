@@ -1,13 +1,13 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  background-color: #f6f8fa;
-  color: #0f172a;
+  background-color: #0b1120;
+  color: #f8fafc;
   font-family:
     'Inter',
     -apple-system,
@@ -16,4 +16,24 @@ body {
     Roboto,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+app-root,
+app-navbar,
+app-training-page,
+app-training-dashboard-tab,
+app-training-plan-tab,
+app-training-stammdaten-tab,
+app-health-page,
+app-health-warnings-banner,
+app-health-kpis,
+app-health-charts {
+  display: block;
+}
+
+table thead,
+table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }

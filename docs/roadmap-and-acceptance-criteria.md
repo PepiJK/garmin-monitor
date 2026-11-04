@@ -54,3 +54,14 @@
 - **Deliverables**:
   - Multi-stage `Dockerfile` (`node:26-alpine` + `python:3.14-slim`), `docker-compose.yml` (`mem_limit: 384m`, `pepnet_web_net`), `deploy/Caddyfile.garmin.snippet`, `.github/workflows/cd.yml`, `README.md`.
   - Live full-stack container verification via `chrome-devtools` MCP server against `http://localhost:8000/training` and `http://localhost:8000/health`.
+
+---
+
+## Implemented Post-Roadmap Enhancements
+
+### Step 8: Stammdaten (Athlete Master Data & Performance Diagnostics), Extended Plan Sheet, and Global Time Window
+- **Deliverables**:
+  - **Stammdaten Engine**: `stammdaten` table in `db.py`, `StammdatenEntrySpec` / `StammdatenSpec` in `plan_schema.py`, CLI `stammdaten summary|export|apply` in `cli.py`, `GET /api/training/stammdaten` in `api/training.py`, and `TrainingStammdatenTabComponent` (`training-stammdaten-tab.component.ts`).
+  - **Extended Plan Sheet & Inline Day Notes**: 20-column structured sheet in `TrainingPlanTabComponent` (`training-plan-tab.component.ts`) showing planned zone/BPM/duration/details alongside reconciled actuals (`IST MN`, `IST KM`, `AVG / MAX BPM`, `AVG PACE`, `SPM`, `LOAD`, `TE (AER/ANA)`, `WATT`, `KCAL`, `RPE`) and auto-expanding inline `NOTIZEN / GEFÜHL` persisted on blur via `PATCH /api/training/plan/days/{day_date}/notes`.
+  - **Extended Completed Workouts Telemetry**: `CompletedWorkoutItem` enriched with pace (`min/km`), running cadence (`avg`/`max spm`), stride length (`m`), running power (`W`), elevation gain (`m`), and aerobic/anaerobic training effect (`TE`).
+  - **Global `7d / 30d / 90d` Time Window & German Formatting**: Shared `selectedDays` signal across `/training` and `/health` (`GarminApiService`), German locale date/number formatting (`german-format.ts`), and viewport-aware sticky table headers (`StickyTableHeaderDirective`).

@@ -1,153 +1,69 @@
-# AGENTS.md — Server AI & Developer Operational Playbook (`pepnet.at`)
+# AGENTS.md — Garmin Monitor Agent Guide
 
-This document guides AI coding/coaching agents and operators managing **Garmin Monitor** (`https://garmin.pepnet.at`) both from a developer workstation via read-only SSH and directly on the `pepnet.at` server (`/opt/garmin-monitor`).
+## 1. Project & Stack Overview
 
----
+**Garmin Monitor** (`https://garmin.pepnet.at`) is a self-hosted Garmin Fenix 7S activity/health synchronization service, training plan & Stammdaten engine, watch calendar workout scheduler, and recovery telemetry web app deployed as a single container on `pepnet.at` behind Caddy Basic Auth.
 
-## 1. Infrastructure & Read-Only SSH Inspection (`pepnet.at`)
-
-- **Host**: `pepnet.at` (`2.31.123.162`, `x86_64` Linux)
-- **Read-Only SSH Access**:
-  - From the workstation, inspect production state via `ssh josef@pepnet.at`:
-    - Reverse proxy stack: `/opt/pepnet/docker-compose.yml` and `/opt/pepnet/caddy/Caddyfile` (`caddy:2-alpine` v2.11.7 attached to Docker network `pepnet_web_net`).
-    - Garmin Monitor stack: `/opt/garmin-monitor/docker-compose.yml` (`container_name: garmin-monitor`, `mem_limit: 384m`, bind-mounting `/opt/garmin-monitor/data:/data`).
-- **Quick Server Diagnostics**:
-  ```bash
-  ssh josef@pepnet.at "docker ps && docker logs --tail 50 garmin-monitor"
-  ```
+- **Backend (`backend/`)**: Python `3.14.9` (`.python-version`), FastAPI, Uvicorn, Pydantic v2, SQLite 3 (`WAL` mode at `data/garmin.db`), `python-garminconnect`, `asyncio.TaskGroup` scheduler. Main package: `backend/src/garmin_monitor/` (`main.py`, `cli.py`, `db.py`, `api/`). Tests: `backend/tests/`.
+- **Frontend (`frontend/`)**: Node `26.13.0` (`npm 11.20.0`), Angular `22.2` Standalone SPA (`OnPush`, Signals), Tailwind CSS v4, Apache ECharts (`ngx-echarts` SVG). Main app: `frontend/src/app/` (`core/`, `shared/`, `features/training/`, `features/health/`).
+- **Container & Deploy**: Multi-stage `Dockerfile`, `docker-compose.yml` (`mem_limit: 384m`, `pepnet_web_net`), `deploy/Caddyfile.garmin.snippet`, `.github/workflows/{ci,cd}.yml`.
 
 ---
 
-## 2. Inspecting Training & Physiological Data on `pepnet.at`
+## 2. Documentation & Accountability (`docs/`)
 
-Inside `/opt/garmin-monitor`, the SQLite database (WAL mode) resides at `/opt/garmin-monitor/data/garmin.db` (`/data/garmin.db` inside the `garmin-monitor` container).
+Canonical specifications live in [`docs/`](./docs/README.md):
+- [`docs/README.md`](./docs/README.md) — Documentation index
+- [`docs/requirements-and-architecture.md`](./docs/requirements-and-architecture.md) — Architecture, SQLite schemas, API endpoints, sync/matching/warning rules & code standards
+- [`docs/operations-and-cli-playbook.md`](./docs/operations-and-cli-playbook.md) — `pepnet.at` SSH inspection, SQLite queries, and `plan` / `stammdaten` CLI & YAML schemas
+- [`docs/design-system.md`](./docs/design-system.md) — *Alpine Telemetry Lab* palette, typography (`tabular-nums`), German formatting & layout rules
+- [`docs/roadmap-and-acceptance-criteria.md`](./docs/roadmap-and-acceptance-criteria.md) — Roadmap, acceptance criteria & log of implemented features
 
-### 2.1 View Active Training Plan Summary
-```bash
-docker exec garmin-monitor python -m garmin_monitor plan summary
-```
-
-### 2.2 Export Current Active Plan to YAML
-```bash
-docker exec garmin-monitor python -m garmin_monitor plan export > current_plan.yaml
-```
-
-### 2.3 Query Recent Activities & Recovery Metrics Directly via SQLite
-```bash
-# Last 14 days of completed activities
-sqlite3 -header -column /opt/garmin-monitor/data/garmin.db "
-  SELECT date_local, sport_type, activity_name,
-         ROUND(distance_m / 1000.0, 2) AS km,
-         ROUND(duration_sec / 60.0, 1) AS min,
-         avg_hr, max_hr, training_load
-  FROM activities
-  ORDER BY start_time_local DESC
-  LIMIT 20;
-"
-
-# Last 14 days of HRV, Sleep, Resting HR, and Readiness
-sqlite3 -header -column /opt/garmin-monitor/data/garmin.db "
-  SELECT date, sleep_score, sleep_qualifier,
-         hrv_nightly_avg, hrv_baseline_low, hrv_status,
-         resting_hr, body_battery_high, training_readiness_score
-  FROM daily_health
-  ORDER BY date DESC
-  LIMIT 14;
-"
-```
+**Rule**: Read the relevant `docs/` before making changes. Whenever you implement or modify features, schemas, endpoints, CLI commands, or UI behavior, **update or add to `docs/`** (using relative links) so the documentation always keeps account of everything implemented.
 
 ---
 
-## 3. Authoring & Applying Training Plans (`plan apply`)
+## 3. Development & Verification Workflow (Strict Order)
 
-Mutations to the training plan are performed exclusively via the server CLI (`plan apply <file.yaml|json>`).
+Follow this exact sequence for every change:
 
-### 3.1 How `plan apply` Works
-1. **Validates** the YAML/JSON file against `TrainingPlanSpec` (Pydantic v2).
-2. **Preserves Completed History**: Any existing `plan_days` row with `date < today` (`Europe/Vienna`) and `status` in `('done', 'partial')` is preserved untouched so completed execution metrics are never lost.
-3. **Cleans Up Superseded Future Workouts**: Any existing future (`date >= today`) workout with a `garmin_schedule_id` or `garmin_workout_id` is unscheduled and deleted from Garmin Connect before uploading replacements.
-4. **Uploads & Schedules Future Workouts to Fenix 7S**:
-   - **`running`** (`sportTypeId: 1`): Uploads structured steps (`warmup`, `interval`, `recovery`, `cooldown`, `repeat`) with distance (`distance_km`) or time (`duration_min`) end conditions and HR (`hr_min`/`hr_max` or `hr_zone`) or pace (`pace_min_per_km`) targets, and schedules the workout on `date` on the Fenix 7S Training Calendar.
-   - **`strength_training`** (`sportTypeId: 5`): Uploads a calendar-scheduled strength workout with planned duration and focus/intensity description (timed step without granular per-set FIT SDK rep-counting prompts).
-   - **`rest`**: Stored in SQLite and marked `rest` without uploading a watch workout.
-5. **Reconciles Completion Statuses**: Runs `reconcile_plan_completions()` against synced activities (`done` ≥ 80% of target km/duration, `partial` < 80%, `missed` if `date < today` with no matching activity, `pending` if `date >= today`).
+### Step 1: Red → Green → Refactor (TDD & ≥ 80% Coverage)
+1. **Red**: Write or update failing unit/integration tests first (`backend/tests/test_*.py` or `frontend/src/**/*.spec.ts`).
+2. **Green**: Implement the minimal code required to pass the tests.
+3. **Refactor**: Clean up code while keeping test coverage **≥ 80%** across both backend (`pytest-cov`) and frontend (`@vitest/coverage-v8`).
 
-### 3.2 Sample Training Plan YAML (`sample_plan.yaml`)
-```yaml
-name: "Autumn 10K & Strength Block"
-notes: "Polarized running with 2x weekly kettlebell/barbell strength sessions"
-days:
-  - date: "2026-11-02"
-    sport_type: "running"
-    workout_title: "Easy Aerobic Run"
-    focus: "Zone 2 aerobic base"
-    goal_km: 8.0
-    goal_duration_min: 44.0
-    hr_goal_label: "Z2 (135-148 bpm)"
-    hr_min: 135
-    hr_max: 148
-    steps:
-      - kind: "warmup"
-        duration_min: 10.0
-        hr_min: 120
-        hr_max: 138
-      - kind: "interval"
-        distance_km: 6.0
-        hr_min: 135
-        hr_max: 148
-      - kind: "cooldown"
-        duration_min: 5.0
-        hr_min: 115
-        hr_max: 132
+### Step 2: Format → Lint → Test → Build
 
-  - date: "2026-11-03"
-    sport_type: "strength_training"
-    workout_title: "Full Body Strength A"
-    focus: "Squat, overhead press, weighted pull-ups, core stability"
-    goal_duration_min: 45.0
-    hr_goal_label: "Avg < 135 bpm"
-    hr_min: 95
-    hr_max: 135
-
-  - date: "2026-11-04"
-    sport_type: "rest"
-    workout_title: "Rest & Mobility"
-    focus: "Active recovery and foam rolling"
-
-  - date: "2026-11-05"
-    sport_type: "running"
-    workout_title: "Threshold Cruise Intervals"
-    focus: "4 x 1.5 km at lactate threshold with 2 min jog recovery"
-    goal_km: 10.0
-    goal_duration_min: 50.0
-    hr_goal_label: "Z4 (162-172 bpm)"
-    hr_min: 162
-    hr_max: 172
-    steps:
-      - kind: "warmup"
-        distance_km: 2.0
-        hr_zone: 2
-      - kind: "repeat"
-        repeats: 4
-        steps:
-          - kind: "interval"
-            distance_km: 1.5
-            hr_min: 162
-            hr_max: 172
-            pace_min_per_km: "4:15-4:25"
-          - kind: "recovery"
-            duration_min: 2.0
-            hr_zone: 1
-      - kind: "cooldown"
-        distance_km: 2.0
-        hr_zone: 1
-```
-
-### 3.3 Applying a Plan Update on `pepnet.at`
+#### Backend (`backend/` with `.venv` active: `source .venv/bin/activate`)
 ```bash
-# Copy or write the updated plan inside /opt/garmin-monitor/data/plan.yaml
-docker exec garmin-monitor python -m garmin_monitor plan apply /data/plan.yaml
-
-# Verify the updated summary
-docker exec garmin-monitor python -m garmin_monitor plan summary
+cd backend
+ruff format src tests          # 1. Format code
+ruff format --check src tests  # 2. Verify formatting
+ruff check src tests           # 3. Lint (py314 rules)
+pytest                         # 4. Run unit/integration tests (enforces >= 80% coverage)
 ```
+
+#### Frontend (`frontend/`)
+```bash
+cd frontend
+npm run format                 # 1. Format code (Prettier)
+npm run format:check           # 2. Verify formatting
+npm run lint                   # 3. Lint (ESLint / angular-eslint)
+npm run test:ci                # 4. Run headless Vitest suite (enforces >= 80% coverage)
+npm run build                  # 5. Build production bundle (dist/frontend/browser)
+```
+
+### Step 3: Serve & Verify Live
+```bash
+# Backend API & SPA host (http://127.0.0.1:8000)
+cd backend && uvicorn garmin_monitor.main:app --reload --host 127.0.0.1 --port 8000
+
+# Frontend dev server (http://127.0.0.1:4200 -> proxies /api/* to :8000)
+cd frontend && npm start
+
+# Full-stack Docker container verification (http://127.0.0.1:8000)
+docker compose up --build -d && curl -fsS http://127.0.0.1:8000/api/healthz
+```
+
+### Step 4: Update `docs/`
+Record any new or modified capabilities, schemas, endpoints, or operational commands in [`docs/`](./docs/README.md).

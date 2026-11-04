@@ -13,6 +13,7 @@ from garmin_monitor.plan_service import (
     get_active_plan_with_days,
     reconcile_plan_completions,
     sync_future_plan_to_garmin,
+    update_plan_day_notes,
 )
 from garmin_monitor.sync_service import ActivityRecord, upsert_activity
 
@@ -259,3 +260,9 @@ def test_apply_plan_and_auto_completion_rules(tmp_path: Path) -> None:
         reference_date=today,
     )
     assert re_uploaded == 2
+
+    # Test update_plan_day_notes persists and exports cleanly
+    updated_row = update_plan_day_notes(settings, "2026-11-06", "Gutes Gefühl im Aufbau")
+    assert updated_row is not None
+    assert updated_row["notes"] == "Gutes Gefühl im Aufbau"
+    assert "Gutes Gefühl im Aufbau" in export_active_plan_yaml(settings)

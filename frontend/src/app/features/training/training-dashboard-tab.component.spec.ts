@@ -24,6 +24,15 @@ const SAMPLE_DASHBOARD: TrainingDashboardResponse = {
       date_local: '2026-11-02',
       duration_min: 48,
       distance_km: 10.4,
+      avg_pace_sec_per_km: 277,
+      avg_pace_min_per_km: '4:37',
+      avg_cadence_spm: 168,
+      max_cadence_spm: 184,
+      avg_stride_m: 1.12,
+      avg_power_w: 245,
+      elevation_gain_m: 42,
+      aerobic_te: 3.4,
+      anaerobic_te: 1.2,
       avg_hr: 154,
       max_hr: 172,
       calories: 640,
@@ -74,7 +83,7 @@ describe('TrainingDashboardTabComponent', () => {
   it('renders KPI cards, completed workouts table, and emits range selection', async () => {
     const fixture = TestBed.createComponent(TrainingDashboardTabComponent);
     fixture.componentRef.setInput('dashboard', SAMPLE_DASHBOARD);
-    fixture.componentRef.setInput('selectedWeeks', 12);
+    fixture.componentRef.setInput('selectedWeeks', 30);
 
     const emitted: TrainingWeekWindow[] = [];
     fixture.componentInstance.weeksChange.subscribe((w) => emitted.push(w));
@@ -82,15 +91,27 @@ describe('TrainingDashboardTabComponent', () => {
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
 
-    expect(el.querySelector('[data-testid="kpi-running-km"]')?.textContent).toContain('18.4');
+    expect(el.querySelector('[data-testid="kpi-running-km"]')?.textContent).toContain('18,4');
     expect(el.querySelector('[data-testid="kpi-strength-min"]')?.textContent).toContain('85');
     expect(el.querySelector('[data-testid="kpi-completed-workouts"]')?.textContent).toContain('3');
     expect(el.textContent).toContain('Prater Hauptallee Tempo');
     expect(el.textContent).toContain('Barbell & Kettlebell Full Body');
+    expect(el.textContent).toContain('Mon, 02.11.2026, 07:30');
+    expect(el.textContent).toContain('4:37 /km');
+    expect(el.textContent).toContain('168 / 184 spm');
+    expect(el.textContent).toContain('1,12 m');
+    expect(el.textContent).toContain('245 W');
+    expect(el.textContent).toContain('+42 m');
+    expect(el.textContent).toContain('3,4 / 1,2');
 
-    const btn26 = el.querySelector('[data-testid="weeks-btn-26"]') as HTMLButtonElement;
-    btn26.click();
-    expect(emitted).toEqual([26]);
+    const table = el.querySelector('[data-testid="week-workouts-table"]') as HTMLTableElement;
+    expect(table.querySelector('thead')?.classList.contains('sticky')).toBe(true);
+    expect(table.querySelector('thead')?.classList.contains('top-0')).toBe(true);
+    expect(table.querySelector('thead th')?.classList.contains('sticky')).toBe(true);
+
+    const btn90 = el.querySelector('[data-testid="weeks-btn-90"]') as HTMLButtonElement;
+    btn90.click();
+    expect(emitted).toEqual([90]);
   });
 
   it('builds ECharts options for weekly running and strength series', () => {

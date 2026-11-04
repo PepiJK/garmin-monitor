@@ -6,10 +6,11 @@
 
 ### Core Capabilities
 1. **Garmin Connect Sync & SQLite WAL Storage**: Periodically downloads activities and comprehensive daily physiological metrics into a local SQLite database (`WAL` mode), reconciles completed activities against an active training plan, and pushes structured/scheduled workouts to the Fenix 7S Training Calendar.
-2. **Server-Side CLI & AI Operational Playbook (`AGENTS.md`)**: Enables an AI assistant running on `pepnet.at` to inspect training/health history and safely apply/reconcile training plan updates via CLI commands.
-3. **FastAPI REST API (`/api/*`)**: Serves training dashboards, active training plans, health telemetry, multi-signal health warnings, and sync controls.
+2. **Server-Side CLI & AI Operational Playbook ([`docs/operations-and-cli-playbook.md`](./operations-and-cli-playbook.md))**: Enables an AI assistant running on `pepnet.at` to inspect training/health history and safely apply/reconcile training plan and athlete master data (`Stammdaten`) updates via CLI commands.
+3. **FastAPI REST API (`/api/*`)**: Serves training dashboards, active training plans, inline day-note persistence (`PATCH /api/training/plan/days/{day_date}/notes`), athlete master data (`GET /api/training/stammdaten`), health telemetry, multi-signal health warnings, and sync controls.
 4. **Angular Standalone SPA (`/training` & `/health`)**:
-   - `/training`: `Dashboard` tab (weekly KPIs, completed workouts, `4w / 12w / 26w` ECharts diagrams) and `Plan` tab (structured goal-vs-actual table with status badges).
+   - Shared global `7d / 30d / 90d` time-window selector across `/training` and `/health`.
+   - `/training`: `Dashboard` tab (selected-window KPIs, completed workouts ledger with cadence/stride/power/TE/load, weekly ECharts diagrams), `Plan` tab (20-column structured sheet with goal-vs-actual telemetry, status badges, and inline auto-saving day notes), and `Stammdaten` tab (athlete profile, lactate/threshold diagnostics, HR zones, and hardware).
    - `/health`: Severity-ranked (`critical` / `warning`) diagnostic banners, current vitals KPI cards, and `7d / 30d / 90d` ECharts recovery trends.
 5. **Quality Gates & GitHub Free CI/CD**:
    - Python 3.14 (`3.14.9`) with Ruff linting/formatting and `pytest` ≥ 80% coverage.
@@ -17,7 +18,7 @@
    - GitHub Actions CI (`ci.yml`) and Release CD (`cd.yml`) deploying to `/opt/garmin-monitor` on `pepnet.at` behind Caddy `basic_auth`.
 
 ### Explicit Non-Goals
-- No web UI forms for authoring or editing training plans (mutations occur via CLI + AI on server).
+- No web UI forms for authoring or editing training plan structure or workouts (structural mutations occur via CLI + AI on server; only per-day `notes` are editable inline in the `Plan` table).
 - No web UI forms for editing custom health-warning threshold rules.
 - No external push notifications (email, Telegram, ntfy, webhooks) — warnings appear in `/health` UI only.
 - No granular per-set FIT SDK `exerciseCategory`/`exerciseName` rep-counting prompts on the watch for strength workouts.
@@ -55,16 +56,27 @@
 
 ---
 
-## 4. Training Plan Engine & Auto-Completion Rules
+## 4. Training Plan, Stammdaten Engine & Auto-Completion Rules
 
-### Storage & CLI (`training_plans` and `plan_days` tables)
+### Storage & CLI (`training_plans`, `plan_days`, and `stammdaten` tables)
 - CLI commands:
   - `python -m garmin_monitor plan summary`
-  - `python -m garmin_monitor plan export`
-  - `python -m garmin_monitor plan apply <file.yaml|json>`
-  - `python -m garmin_monitor plan sync`
+  - `python -m garmin_monitor plan export [-o <file>]`
+  - `python -m garmin_monitor plan apply <file.yaml|json> [--no-garmin-sync]`
+  - `python -m garmin_monitor plan sync [--force]`
+  - `python -m garmin_monitor stammdaten summary`
+  - `python -m garmin_monitor stammdaten export [-o <file>]`
+  - `python -m garmin_monitor stammdaten apply <file.yaml|json>`
+- Stored Plan Day Metrics (`plan_days` table):
+  - Planned targets: `date` (unique), `sport_type`, `workout_title`, `focus`, `goal_km`, `goal_duration_min`, `hr_goal_label`, `hr_min`, `hr_max`, `steps_json`, `garmin_workout_id`, `garmin_schedule_id`.
+  - Reconciled actuals & notes: `actual_km`, `actual_duration_min`, `actual_avg_hr`, `actual_max_hr`, `actual_pace_min_per_km`, `actual_cadence_spm`, `actual_stride_m`, `actual_power_w`, `actual_training_load`, `actual_aerobic_te`, `actual_anaerobic_te`, `actual_calories`, `rpe`, `notes`, `matched_activity_ids`, `status`.
+- Stored Athlete Master Data (`stammdaten` table):
+  - `id` (PK), `sort_order`, `category`, `parameter`, `value`, `unit_or_range`, `reference_note`, `updated_at`.
+- Inline Day Notes Endpoint:
+  - `PATCH /api/training/plan/days/{day_date}/notes` persists user-entered training notes/feelings on blur in SQLite and updates the stored plan YAML snapshot.
 - On `plan apply`:
-  - Preserves completed historical rows (`date < today` with `done` or `partial`).
+  - Preserves completed historical rows (`date < today` with `done` or `partial`) and existing user notes.
+  - Updates `stammdaten` if included in the plan YAML.
   - Reconciles future Garmin Connect workouts by deleting/unscheduling superseded `garmin_workout_id` / `garmin_schedule_id` items before uploading and calendar-scheduling updated future days (`date >= today`).
   - **Running workouts** (`sportTypeId: 1`, `sportTypeKey: "running"`): Full structured steps (warmup, intervals/repeats, cooldown with distance/time durations and HR/pace targets) scheduled on `date`.
   - **Strength workouts** (`sportTypeId: 5`, `sportTypeKey: "strength_training"`): Calendar-scheduled strength workout with planned duration and focus/intensity description (open/timed step).

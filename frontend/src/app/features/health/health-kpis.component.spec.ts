@@ -53,5 +53,70 @@ describe('HealthKpisComponent', () => {
     fixture.componentRef.setInput('kpis', { ...SAMPLE_KPIS, hrv_status: 'LOW' });
     await fixture.whenStable();
     expect(fixture.componentInstance.hrvStatusClass()).toContain('red');
+
+    // Test computing averages from selected 7d / 30d / 90d series
+    fixture.componentRef.setInput('selectedDays', 7);
+    fixture.componentRef.setInput('series', [
+      {
+        date: '2026-11-02',
+        sleep_score: 80,
+        sleep_qualifier: 'GOOD',
+        sleep_total_min: 420,
+        sleep_deep_min: 80,
+        sleep_light_min: 240,
+        sleep_rem_min: 100,
+        sleep_awake_min: 10,
+        hrv_nightly_avg: 60,
+        hrv_weekly_avg: 60,
+        hrv_baseline_low: 54,
+        hrv_baseline_high: 68,
+        hrv_status: 'BALANCED',
+        resting_hr: 48,
+        min_hr: 44,
+        max_hr: 150,
+        stress_avg: 20,
+        stress_max: 70,
+        body_battery_high: 80,
+        body_battery_low: 30,
+        spo2_avg: 96,
+        respiration_avg: 14,
+        steps: 10000,
+        training_readiness_score: 75,
+        training_readiness_level: 'HIGH',
+      },
+      {
+        date: '2026-11-03',
+        sleep_score: 90,
+        sleep_qualifier: 'EXCELLENT',
+        sleep_total_min: 480,
+        sleep_deep_min: 90,
+        sleep_light_min: 270,
+        sleep_rem_min: 120,
+        sleep_awake_min: 5,
+        hrv_nightly_avg: 70,
+        hrv_weekly_avg: 62,
+        hrv_baseline_low: 54,
+        hrv_baseline_high: 68,
+        hrv_status: 'BALANCED',
+        resting_hr: 46,
+        min_hr: 43,
+        max_hr: 155,
+        stress_avg: -2,
+        stress_max: 60,
+        body_battery_high: 90,
+        body_battery_low: 40,
+        spo2_avg: 97,
+        respiration_avg: 14,
+        steps: 12000,
+        training_readiness_score: 85,
+        training_readiness_level: 'HIGH',
+      },
+    ]);
+    await fixture.whenStable();
+    expect(el.querySelector('[data-testid="kpi-hrv"]')?.textContent).toContain('65');
+    expect(el.querySelector('[data-testid="kpi-sleep"]')?.textContent).toContain('85');
+    expect(el.querySelector('[data-testid="kpi-rhr"]')?.textContent).toContain('47');
+    expect(el.querySelector('[data-testid="kpi-stress"]')?.textContent).toContain('20');
+    expect(el.querySelector('[data-testid="kpi-readiness"]')?.textContent).toContain('11.000');
   });
 });

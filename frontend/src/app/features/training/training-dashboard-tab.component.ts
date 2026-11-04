@@ -2,33 +2,50 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { EChartsCoreOption } from 'echarts/core';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import {
+  CompletedWorkoutItem,
+  HealthDayWindow,
   TrainingDashboardResponse,
   TrainingWeekWindow,
   WeeklyTrainingPoint,
 } from '../../core/api/garmin-api.models';
+import {
+  formatGermanDate,
+  formatGermanHoursMinutes,
+  formatGermanIsoWeek,
+  formatGermanLocalStartTime,
+  formatGermanNumber,
+  formatGermanShortDate,
+  formatRunningPace,
+} from '../../core/format/german-format';
+import { StickyTableHeaderDirective } from '../../shared/directives/sticky-table-header.directive';
 
 export function buildRunningWeeklyChartOptions(series: WeeklyTrainingPoint[]): EChartsCoreOption {
-  const labels = series.map((pt) => pt.iso_week_label);
+  const labels = series.map(
+    (pt) => `${formatGermanIsoWeek(pt.iso_week_label)} (${formatGermanShortDate(pt.week_start)})`,
+  );
   const values = series.map((pt) => pt.running_km);
 
   return {
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (v: unknown) => `${Number(v ?? 0).toFixed(1)} km`,
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+      valueFormatter: (v: unknown) => `${formatGermanNumber(Number(v ?? 0), 1)} km`,
     },
     grid: { left: 48, right: 20, top: 28, bottom: 32 },
     xAxis: {
       type: 'category',
       data: labels,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#CBD5E1' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#334155' } },
     },
     yAxis: {
       type: 'value',
       name: 'km',
-      nameTextStyle: { color: '#475569', fontSize: 11 },
-      axisLabel: { color: '#475569', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#E2E8F0' } },
+      nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b' } },
     },
     series: [
       {
@@ -37,7 +54,7 @@ export function buildRunningWeeklyChartOptions(series: WeeklyTrainingPoint[]): E
         data: values,
         barMaxWidth: 28,
         itemStyle: {
-          color: '#0284C7',
+          color: '#0ea5e9',
           borderRadius: [4, 4, 0, 0],
         },
       },
@@ -47,35 +64,40 @@ export function buildRunningWeeklyChartOptions(series: WeeklyTrainingPoint[]): E
         data: values,
         smooth: true,
         symbolSize: 6,
-        lineStyle: { color: '#0369A1', width: 2 },
-        itemStyle: { color: '#0369A1' },
+        lineStyle: { color: '#38bdf8', width: 2 },
+        itemStyle: { color: '#38bdf8' },
       },
     ],
   };
 }
 
 export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): EChartsCoreOption {
-  const labels = series.map((pt) => pt.iso_week_label);
+  const labels = series.map(
+    (pt) => `${formatGermanIsoWeek(pt.iso_week_label)} (${formatGermanShortDate(pt.week_start)})`,
+  );
   const values = series.map((pt) => pt.strength_minutes);
 
   return {
     tooltip: {
       trigger: 'axis',
-      valueFormatter: (v: unknown) => `${Number(v ?? 0).toFixed(0)} min`,
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+      valueFormatter: (v: unknown) => `${formatGermanNumber(Number(v ?? 0), 0)} min`,
     },
     grid: { left: 48, right: 20, top: 28, bottom: 32 },
     xAxis: {
       type: 'category',
       data: labels,
-      axisLabel: { color: '#475569', fontSize: 11 },
-      axisLine: { lineStyle: { color: '#CBD5E1' } },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#334155' } },
     },
     yAxis: {
       type: 'value',
       name: 'min',
-      nameTextStyle: { color: '#475569', fontSize: 11 },
-      axisLabel: { color: '#475569', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#E2E8F0' } },
+      nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b' } },
     },
     series: [
       {
@@ -84,7 +106,7 @@ export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): 
         data: values,
         barMaxWidth: 28,
         itemStyle: {
-          color: '#0D9488',
+          color: '#14b8a6',
           borderRadius: [4, 4, 0, 0],
         },
       },
@@ -94,8 +116,8 @@ export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): 
         data: values,
         smooth: true,
         symbolSize: 6,
-        lineStyle: { color: '#0F766E', width: 2 },
-        itemStyle: { color: '#0F766E' },
+        lineStyle: { color: '#2dd4bf', width: 2 },
+        itemStyle: { color: '#2dd4bf' },
       },
     ],
   };
@@ -103,98 +125,120 @@ export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): 
 
 @Component({
   selector: 'app-training-dashboard-tab',
-  imports: [NgxEchartsDirective],
+  imports: [NgxEchartsDirective, StickyTableHeaderDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
-    <div class="space-y-6">
-      <!-- Current ISO-Week KPI Strip -->
+    <div class="flex flex-col gap-6">
+      <!-- Selected Window KPI Strip (7d / 30d / 90d) -->
       <section
-        aria-label="Current week training summary"
-        class="grid grid-cols-1 gap-4 sm:grid-cols-3"
+        aria-label="Selected time window training summary"
+        class="grid grid-cols-1 gap-5 sm:grid-cols-3"
       >
-        <div class="rounded-lg border border-slate-200 bg-white p-5" data-testid="kpi-running-km">
+        <div
+          class="rounded-lg border border-slate-800 bg-slate-900/90 p-5"
+          data-testid="kpi-running-km"
+        >
           <div class="flex items-baseline justify-between">
-            <span class="text-sm font-medium text-slate-600">Running distance this week</span>
-            <span class="font-mono text-xs text-sky-700">{{ weekRangeLabel() }}</span>
+            <span class="text-sm font-medium text-slate-300">
+              Running distance ({{ windowBadgeLabel() }})
+            </span>
+            <span class="font-mono text-xs text-sky-400">{{ weekRangeLabel() }}</span>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="font-mono text-3xl font-bold tabular-nums text-slate-900">
-              {{ (dashboard()?.ran_km_this_week ?? 0).toFixed(1) }}
+            <span class="font-mono text-3xl font-bold tabular-nums text-slate-100">
+              {{ formatNum(runningKm(), 1) }}
             </span>
-            <span class="text-sm font-medium text-slate-500">km</span>
+            <span class="text-sm font-medium text-slate-400">km</span>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Monday–Sunday ISO-8601 window</p>
-        </div>
-
-        <div class="rounded-lg border border-slate-200 bg-white p-5" data-testid="kpi-strength-min">
-          <div class="flex items-baseline justify-between">
-            <span class="text-sm font-medium text-slate-600">Strength training this week</span>
-            <span class="font-mono text-xs text-teal-700">{{ weekRangeLabel() }}</span>
-          </div>
-          <div class="mt-3 flex items-baseline gap-2">
-            <span class="font-mono text-3xl font-bold tabular-nums text-slate-900">
-              {{ (dashboard()?.strength_minutes_this_week ?? 0).toFixed(0) }}
-            </span>
-            <span class="text-sm font-medium text-slate-500">min</span>
-          </div>
-          <p class="mt-1 text-xs text-slate-500">Cumulative strength &amp; conditioning time</p>
+          <p class="mt-1 font-mono text-xs tabular-nums text-slate-400">
+            {{ runningSessionsCount() }} runs in selected window
+          </p>
         </div>
 
         <div
-          class="rounded-lg border border-slate-200 bg-white p-5"
+          class="rounded-lg border border-slate-800 bg-slate-900/90 p-5"
+          data-testid="kpi-strength-min"
+        >
+          <div class="flex items-baseline justify-between">
+            <span class="text-sm font-medium text-slate-300">
+              Strength training ({{ windowBadgeLabel() }})
+            </span>
+            <span class="font-mono text-xs text-teal-400">{{ weekRangeLabel() }}</span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span class="font-mono text-3xl font-bold tabular-nums text-slate-100">
+              {{ formatNum(strengthMinutes(), 0) }}
+            </span>
+            <span class="text-sm font-medium text-slate-400">min</span>
+          </div>
+          <p class="mt-1 font-mono text-xs tabular-nums text-slate-400">
+            {{ strengthSessionsCount() }} sessions ({{ formatDurationHrs(strengthMinutes()) }})
+          </p>
+        </div>
+
+        <div
+          class="rounded-lg border border-slate-800 bg-slate-900/90 p-5"
           data-testid="kpi-completed-workouts"
         >
           <div class="flex items-baseline justify-between">
-            <span class="text-sm font-medium text-slate-600">Completed workouts this week</span>
-            <span class="font-mono text-xs text-slate-500">Fenix 7S</span>
+            <span class="text-sm font-medium text-slate-300">
+              Completed workouts ({{ windowBadgeLabel() }})
+            </span>
+            <span class="font-mono text-xs text-slate-400">Fenix 7S</span>
           </div>
           <div class="mt-3 flex items-baseline gap-2">
-            <span class="font-mono text-3xl font-bold tabular-nums text-slate-900">
-              {{ dashboard()?.completed_workouts_this_week ?? 0 }}
+            <span class="font-mono text-3xl font-bold tabular-nums text-slate-100">
+              {{ completedWorkoutsCount() }}
             </span>
-            <span class="text-sm font-medium text-slate-500">sessions</span>
+            <span class="text-sm font-medium text-slate-400">sessions</span>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Synced activities since Monday 00:00</p>
+          <p class="mt-1 font-mono text-xs tabular-nums text-slate-400">
+            Total load: {{ formatNum(totalTrainingLoad(), 0) }} ·
+            {{ formatNum(totalCalories(), 0) }} kcal
+          </p>
         </div>
       </section>
 
       <!-- Range Selector + ECharts Weekly Diagrams -->
-      <section class="rounded-lg border border-slate-200 bg-white p-5">
+      <section class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
         <div
-          class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4"
+          class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4"
         >
           <div>
-            <h2 class="text-base font-semibold text-slate-900">Weekly training progression</h2>
-            <p class="text-xs text-slate-500">
-              ISO-8601 weekly running kilometers and strength training minutes
+            <h2 class="text-base font-semibold text-slate-100">
+              Weekly training progression ({{ windowBadgeLabel() }})
+            </h2>
+            <p class="text-xs text-slate-400">
+              ISO-8601 weekly running distance and strength duration ({{ fullDateRangeLabel() }})
             </p>
           </div>
 
           <div
-            class="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5"
+            class="inline-flex rounded-lg border border-sky-500/40 bg-slate-950 p-1"
             role="group"
             aria-label="Training history window"
           >
-            @for (w of weekOptions; track w) {
+            @for (d of dayOptions; track d) {
               <button
                 type="button"
-                (click)="weeksChange.emit(w)"
-                [attr.data-testid]="'weeks-btn-' + w"
+                (click)="weeksChange.emit(d)"
+                [attr.data-testid]="'weeks-btn-' + d"
                 [class]="
-                  selectedWeeks() === w
-                    ? 'cursor-pointer rounded bg-white px-3 py-1 font-mono text-xs font-semibold text-sky-700 shadow-xs'
-                    : 'cursor-pointer rounded px-3 py-1 font-mono text-xs font-medium text-slate-600 hover:text-slate-900'
+                  selectedWeeks() === d
+                    ? 'cursor-pointer rounded-md bg-sky-500 px-3.5 py-1 font-mono text-xs font-bold text-slate-950 shadow-sm'
+                    : 'cursor-pointer rounded-md px-3.5 py-1 font-mono text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white'
                 "
               >
-                {{ w }}w
+                {{ d }}d
               </button>
             }
           </div>
         </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div class="rounded-md border border-slate-100 p-3">
-            <h3 class="mb-2 text-xs font-semibold text-slate-700">Weekly running volume (km)</h3>
+        <div class="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div class="rounded-md border border-slate-800 bg-slate-950/60 p-4">
+            <h3 class="mb-2 text-xs font-semibold text-slate-300">Weekly running volume (km)</h3>
             <div
               echarts
               [initOpts]="{ renderer: 'svg' }"
@@ -204,8 +248,8 @@ export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): 
             ></div>
           </div>
 
-          <div class="rounded-md border border-slate-100 p-3">
-            <h3 class="mb-2 text-xs font-semibold text-slate-700">
+          <div class="rounded-md border border-slate-800 bg-slate-950/60 p-4">
+            <h3 class="mb-2 text-xs font-semibold text-slate-300">
               Weekly strength volume (minutes)
             </h3>
             <div
@@ -219,83 +263,202 @@ export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): 
         </div>
       </section>
 
-      <!-- Current Week Completed Workouts Ledger -->
-      <section class="rounded-lg border border-slate-200 bg-white">
-        <div class="border-b border-slate-200 px-5 py-4">
-          <h2 class="text-base font-semibold text-slate-900">Completed workouts this week</h2>
-          <p class="text-xs text-slate-500">
-            Individual Fenix 7S sessions recorded between
-            {{ dashboard()?.current_week_start ?? '-' }} and
-            {{ dashboard()?.current_week_end ?? '-' }}
-          </p>
+      <!-- Selected Window Completed Workouts Ledger -->
+      <section class="overflow-hidden rounded-lg border border-slate-800 bg-slate-900/90">
+        <div
+          class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-5 py-4"
+        >
+          <div>
+            <h2 class="text-base font-semibold text-slate-100">
+              Completed workouts ({{ windowBadgeLabel() }})
+            </h2>
+            <p class="text-xs text-slate-400">
+              Individual Fenix 7S sessions recorded between {{ fullDateRangeLabel() }}
+            </p>
+          </div>
+          <span
+            class="rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1 font-mono text-xs text-sky-400"
+          >
+            {{ displayedActivities().length }} entries
+          </span>
         </div>
 
-        @if ((dashboard()?.current_week_activities ?? []).length === 0) {
+        @if (displayedActivities().length === 0) {
           <div
-            class="px-5 py-8 text-center text-sm text-slate-500"
+            class="px-5 py-8 text-center text-sm text-slate-400"
             data-testid="empty-week-workouts"
           >
-            No completed workouts synced for the current week yet. Sync your Fenix 7S after your
-            next session.
+            No completed workouts synced for the selected {{ windowBadgeLabel() }} window yet. Sync
+            your Fenix 7S after your next session.
           </div>
         } @else {
-          <div class="overflow-x-auto">
+          <div class="relative overflow-auto">
             <table
               class="w-full border-collapse text-left text-sm"
               data-testid="week-workouts-table"
             >
-              <thead>
+              <thead appStickyHeader class="sticky top-0 z-20 bg-slate-950">
                 <tr
-                  class="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600"
+                  class="border-b border-slate-800 bg-slate-950 text-xs font-semibold text-slate-300 shadow-[inset_0_-1px_0_0_#1e293b]"
                 >
-                  <th class="px-4 py-3">Date</th>
-                  <th class="px-4 py-3">Discipline</th>
-                  <th class="px-4 py-3">Activity</th>
-                  <th class="px-4 py-3 text-right">Distance</th>
-                  <th class="px-4 py-3 text-right">Duration</th>
-                  <th class="px-4 py-3 text-right">Avg / Max HR</th>
-                  <th class="px-4 py-3 text-right">Load</th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Date &amp; Time
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Discipline
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Activity
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Distance
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Duration
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Avg Pace
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Cadence (spm)
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Stride
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Power
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Elev. Gain
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Avg / Max HR
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    TE (Aer / Ana)
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Calories
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 whitespace-nowrap bg-slate-950 px-3.5 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Load
+                  </th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-200 font-mono text-xs">
-                @for (act of dashboard()?.current_week_activities ?? []; track act.activity_id) {
-                  <tr class="hover:bg-slate-50/80">
-                    <td class="px-4 py-3 tabular-nums text-slate-700">{{ act.date_local }}</td>
-                    <td class="px-4 py-3 font-sans">
+              <tbody class="relative z-0 divide-y divide-slate-800/80 font-mono text-xs">
+                @for (act of displayedActivities(); track act.activity_id) {
+                  <tr class="transition-colors hover:bg-slate-800/50">
+                    <td class="whitespace-nowrap px-3.5 py-3 tabular-nums text-slate-200">
+                      {{ formatStartTime(act.start_time_local, act.date_local) }}
+                    </td>
+                    <td class="whitespace-nowrap px-3.5 py-3 font-sans">
                       @if (act.sport_type === 'running') {
                         <span
-                          class="inline-flex items-center rounded bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700"
+                          class="inline-flex items-center rounded border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-300"
                         >
                           Running
                         </span>
                       } @else if (act.sport_type === 'strength_training') {
                         <span
-                          class="inline-flex items-center rounded bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700"
+                          class="inline-flex items-center rounded border border-teal-500/30 bg-teal-500/15 px-2 py-0.5 text-xs font-medium text-teal-300"
                         >
                           Strength
                         </span>
                       } @else {
                         <span
-                          class="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                          class="inline-flex items-center rounded border border-slate-700 bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300"
                         >
                           {{ act.sport_type }}
                         </span>
                       }
                     </td>
-                    <td class="px-4 py-3 font-sans font-medium text-slate-900">
+                    <td class="whitespace-nowrap px-3.5 py-3 font-sans font-medium text-slate-100">
                       {{ act.activity_name }}
                     </td>
-                    <td class="px-4 py-3 text-right tabular-nums text-slate-700">
-                      {{ act.distance_km > 0 ? act.distance_km.toFixed(2) + ' km' : '-' }}
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-200"
+                    >
+                      {{ act.distance_km > 0 ? formatNum(act.distance_km, 2) + ' km' : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right tabular-nums text-slate-700">
-                      {{ act.duration_min.toFixed(0) }} min
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-200"
+                    >
+                      {{ formatNum(act.duration_min, 1) }} min
                     </td>
-                    <td class="px-4 py-3 text-right tabular-nums text-slate-700">
+                    <td class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-sky-300">
+                      {{ formatPace(act) }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-200"
+                    >
+                      {{ formatCadence(act) }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-300"
+                    >
+                      {{ formatStride(act) }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-300"
+                    >
+                      {{
+                        act.avg_power_w !== null && act.avg_power_w !== undefined
+                          ? formatNum(act.avg_power_w, 0) + ' W'
+                          : '-'
+                      }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-300"
+                    >
+                      {{ formatElevation(act) }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-300"
+                    >
                       {{ act.avg_hr ?? '-' }} / {{ act.max_hr ?? '-' }} bpm
                     </td>
-                    <td class="px-4 py-3 text-right tabular-nums text-slate-700">
-                      {{ act.training_load !== null ? act.training_load.toFixed(0) : '-' }}
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-300"
+                    >
+                      {{ formatTrainingEffect(act) }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-300"
+                    >
+                      {{ act.calories !== null ? formatNum(act.calories, 0) + ' kcal' : '-' }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-3.5 py-3 text-right tabular-nums text-slate-100"
+                    >
+                      {{ act.training_load !== null ? formatNum(act.training_load, 0) : '-' }}
                     </td>
                   </tr>
                 }
@@ -309,17 +472,92 @@ export function buildStrengthWeeklyChartOptions(series: WeeklyTrainingPoint[]): 
 })
 export class TrainingDashboardTabComponent {
   readonly dashboard = input<TrainingDashboardResponse | null>(null);
-  readonly selectedWeeks = input<TrainingWeekWindow>(12);
+  readonly selectedWeeks = input<TrainingWeekWindow>(30);
   readonly weeksChange = output<TrainingWeekWindow>();
 
-  readonly weekOptions: readonly TrainingWeekWindow[] = [4, 12, 26];
+  readonly dayOptions: readonly HealthDayWindow[] = [7, 30, 90];
+
+  readonly windowBadgeLabel = computed(() => {
+    const w = this.selectedWeeks();
+    if (w === 7 || w === 30 || w === 90) {
+      return `${w}d`;
+    }
+    const req = this.dashboard()?.days_requested;
+    if (req) {
+      return `${req}d`;
+    }
+    return `${w}w`;
+  });
+
+  readonly displayedActivities = computed<CompletedWorkoutItem[]>(() => {
+    const d = this.dashboard();
+    if (!d) {
+      return [];
+    }
+    if (d.window_activities && d.window_activities.length > 0) {
+      return d.window_activities;
+    }
+    return d.current_week_activities ?? [];
+  });
+
+  readonly runningKm = computed(() => {
+    const d = this.dashboard();
+    if (!d) {
+      return 0;
+    }
+    return d.ran_km_window ?? d.ran_km_this_week ?? 0;
+  });
+
+  readonly strengthMinutes = computed(() => {
+    const d = this.dashboard();
+    if (!d) {
+      return 0;
+    }
+    return d.strength_minutes_window ?? d.strength_minutes_this_week ?? 0;
+  });
+
+  readonly completedWorkoutsCount = computed(() => {
+    const d = this.dashboard();
+    if (!d) {
+      return 0;
+    }
+    return d.completed_workouts_window ?? d.completed_workouts_this_week ?? 0;
+  });
+
+  readonly runningSessionsCount = computed(
+    () => this.displayedActivities().filter((a) => a.sport_type === 'running').length,
+  );
+
+  readonly strengthSessionsCount = computed(
+    () => this.displayedActivities().filter((a) => a.sport_type === 'strength_training').length,
+  );
+
+  readonly totalTrainingLoad = computed(() =>
+    this.displayedActivities().reduce((acc, a) => acc + (a.training_load ?? 0), 0),
+  );
+
+  readonly totalCalories = computed(() =>
+    this.displayedActivities().reduce((acc, a) => acc + (a.calories ?? 0), 0),
+  );
 
   readonly weekRangeLabel = computed(() => {
     const d = this.dashboard();
     if (!d) {
-      return 'ISO Week';
+      return 'Window';
     }
-    return `${d.current_week_start.slice(5)} .. ${d.current_week_end.slice(5)}`;
+    const start = d.window_start || d.current_week_start;
+    const end = d.window_end || d.current_week_end;
+    return `${formatGermanShortDate(start)} – ${formatGermanShortDate(end)}`;
+  });
+
+  readonly fullDateRangeLabel = computed(() => {
+    const d = this.dashboard();
+    if (!d) {
+      return '-';
+    }
+    const start = d.window_start || d.current_week_start;
+    const end = d.window_end || d.current_week_end;
+    return `${formatGermanDate(start)} – ${formatGermanDate(end)}`;
   });
 
   readonly runningChartOptions = computed<EChartsCoreOption>(() =>
@@ -329,4 +567,66 @@ export class TrainingDashboardTabComponent {
   readonly strengthChartOptions = computed<EChartsCoreOption>(() =>
     buildStrengthWeeklyChartOptions(this.dashboard()?.weekly_series ?? []),
   );
+
+  formatNum(val: number | null | undefined, decimals: number): string {
+    return formatGermanNumber(val, decimals);
+  }
+
+  formatDurationHrs(minutes: number | null | undefined): string {
+    return formatGermanHoursMinutes(minutes);
+  }
+
+  formatStartTime(startTimeLocal: string, dateLocal: string): string {
+    return formatGermanLocalStartTime(startTimeLocal, dateLocal);
+  }
+
+  formatPace(act: CompletedWorkoutItem): string {
+    if (act.sport_type !== 'running' && act.distance_km <= 0) {
+      return '-';
+    }
+    return formatRunningPace(
+      act.avg_pace_min_per_km,
+      act.avg_pace_sec_per_km,
+      act.duration_min,
+      act.distance_km,
+    );
+  }
+
+  formatCadence(act: CompletedWorkoutItem): string {
+    if (act.avg_cadence_spm !== null && act.avg_cadence_spm !== undefined) {
+      if (act.max_cadence_spm !== null && act.max_cadence_spm !== undefined) {
+        return `${formatGermanNumber(act.avg_cadence_spm, 0)} / ${formatGermanNumber(act.max_cadence_spm, 0)} spm`;
+      }
+      return `${formatGermanNumber(act.avg_cadence_spm, 0)} spm`;
+    }
+    return '-';
+  }
+
+  formatStride(act: CompletedWorkoutItem): string {
+    if (act.avg_stride_m !== null && act.avg_stride_m !== undefined && act.avg_stride_m > 0) {
+      return `${formatGermanNumber(act.avg_stride_m, 2)} m`;
+    }
+    return '-';
+  }
+
+  formatElevation(act: CompletedWorkoutItem): string {
+    if (
+      act.elevation_gain_m !== null &&
+      act.elevation_gain_m !== undefined &&
+      act.elevation_gain_m > 0
+    ) {
+      return `+${formatGermanNumber(act.elevation_gain_m, 0)} m`;
+    }
+    return '-';
+  }
+
+  formatTrainingEffect(act: CompletedWorkoutItem): string {
+    if (
+      (act.aerobic_te === null || act.aerobic_te === undefined) &&
+      (act.anaerobic_te === null || act.anaerobic_te === undefined)
+    ) {
+      return '-';
+    }
+    return `${formatGermanNumber(act.aerobic_te ?? 0, 1)} / ${formatGermanNumber(act.anaerobic_te ?? 0, 1)}`;
+  }
 }

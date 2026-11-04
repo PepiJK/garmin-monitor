@@ -7,7 +7,7 @@ import { NavbarComponent } from './shared/layout/navbar.component';
   imports: [RouterOutlet, NavbarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen bg-[#f6f8fa] text-slate-900">
+    <div class="min-h-screen bg-[#0b1120] text-slate-100">
       <app-navbar />
       <main>
         <router-outlet />

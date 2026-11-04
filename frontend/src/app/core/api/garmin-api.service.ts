@@ -3,7 +3,10 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   HealthDashboardResponse,
   HealthDayWindow,
+  PlanDayItem,
   PlanSyncResponse,
+  StammdatenItem,
+  StammdatenResponse,
   SyncResultResponse,
   SyncStatusResponse,
   TrainingDashboardResponse,
@@ -20,14 +23,17 @@ export class GarminApiService {
   readonly status = signal<SyncStatusResponse | null>(null);
   readonly trainingDashboard = signal<TrainingDashboardResponse | null>(null);
   readonly trainingPlan = signal<TrainingPlanResponse | null>(null);
+  readonly stammdaten = signal<StammdatenItem[]>([]);
   readonly healthDashboard = signal<HealthDashboardResponse | null>(null);
 
-  readonly selectedWeeks = signal<TrainingWeekWindow>(12);
-  readonly selectedHealthDays = signal<HealthDayWindow>(30);
+  readonly selectedDays = signal<HealthDayWindow>(30);
+  readonly selectedHealthDays = this.selectedDays;
+  readonly selectedWeeks = signal<TrainingWeekWindow>(30);
 
   readonly isSyncing = signal<boolean>(false);
   readonly isLoadingTraining = signal<boolean>(false);
   readonly isLoadingPlan = signal<boolean>(false);
+  readonly isLoadingStammdaten = signal<boolean>(false);
   readonly isLoadingHealth = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
 
@@ -64,10 +70,10 @@ export class GarminApiService {
       next: () => {
         this.isSyncing.set(false);
         this.loadStatus();
-        this.loadTrainingDashboard(this.selectedWeeks());
+        this.loadTrainingDashboard(this.selectedDays());
         this.loadTrainingPlan();
         if (this.healthDashboard() !== null) {
-          this.loadHealthDashboard(this.selectedHealthDays());
+          this.loadHealthDashboard(this.selectedDays());
         }
       },
       error: (err: { error?: { detail?: string } }) => {
@@ -78,12 +84,26 @@ export class GarminApiService {
     });
   }
 
-  loadTrainingDashboard(weeks: TrainingWeekWindow = this.selectedWeeks()): void {
-    this.selectedWeeks.set(weeks);
+  setDaysWindow(days: HealthDayWindow): void {
+    this.selectedDays.set(days);
+    this.selectedWeeks.set(days);
+    this.loadTrainingDashboard(days);
+    this.loadHealthDashboard(days);
+  }
+
+  loadTrainingDashboard(windowVal: TrainingWeekWindow = this.selectedDays()): void {
+    this.selectedWeeks.set(windowVal);
+    if (windowVal === 7 || windowVal === 30 || windowVal === 90) {
+      this.selectedDays.set(windowVal);
+    }
     this.isLoadingTraining.set(true);
+    const params: Record<string, string> =
+      windowVal === 4 || windowVal === 12 || windowVal === 26
+        ? { weeks: String(windowVal) }
+        : { days: String(windowVal) };
     this.http
       .get<TrainingDashboardResponse>('/api/training/dashboard', {
-        params: { weeks: String(weeks) },
+        params,
       })
       .subscribe({
         next: (res) => {
@@ -102,11 +122,28 @@ export class GarminApiService {
     this.http.get<TrainingPlanResponse>('/api/training/plan').subscribe({
       next: (res) => {
         this.trainingPlan.set(res);
+        if (res.stammdaten && res.stammdaten.length > 0) {
+          this.stammdaten.set(res.stammdaten);
+        }
         this.isLoadingPlan.set(false);
       },
       error: () => {
         this.isLoadingPlan.set(false);
         this.errorMessage.set('Unable to load training plan');
+      },
+    });
+  }
+
+  loadStammdaten(): void {
+    this.isLoadingStammdaten.set(true);
+    this.http.get<StammdatenResponse>('/api/training/stammdaten').subscribe({
+      next: (res) => {
+        this.stammdaten.set(res.items ?? []);
+        this.isLoadingStammdaten.set(false);
+      },
+      error: () => {
+        this.isLoadingStammdaten.set(false);
+        this.errorMessage.set('Unable to load Stammdaten');
       },
     });
   }
@@ -127,6 +164,24 @@ export class GarminApiService {
           this.errorMessage.set('Failed to push training plan workouts to Garmin Connect');
         },
       });
+  }
+
+  updatePlanDayNotes(date: string, notes: string): void {
+    this.http.patch<PlanDayItem>(`/api/training/plan/days/${date}/notes`, { notes }).subscribe({
+      next: (updatedDay) => {
+        const current = this.trainingPlan();
+        if (!current) {
+          return;
+        }
+        this.trainingPlan.set({
+          ...current,
+          days: current.days.map((d) => (d.date === date ? updatedDay : d)),
+        });
+      },
+      error: () => {
+        this.errorMessage.set(`Unable to save notes for ${date}`);
+      },
+    });
   }
 
   loadHealthDashboard(days: HealthDayWindow = this.selectedHealthDays()): void {

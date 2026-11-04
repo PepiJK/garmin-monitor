@@ -11,8 +11,9 @@ export type WarningCode =
   | 'resting_hr_elevated'
   | 'body_battery_low';
 
-export type TrainingWeekWindow = 4 | 12 | 26;
-export type HealthDayWindow = 7 | 30 | 90;
+export type TimeWindowDays = 7 | 30 | 90;
+export type TrainingWeekWindow = 4 | 12 | 26 | TimeWindowDays;
+export type HealthDayWindow = TimeWindowDays;
 
 export interface SyncStatusResponse {
   is_syncing: boolean;
@@ -30,8 +31,22 @@ export interface SyncResultResponse {
   days_synced: number;
   activities_synced: number;
   health_days_synced: number;
+  planned_workouts_synced?: number;
   start_date: string;
   end_date: string;
+}
+
+export interface StammdatenItem {
+  category: string;
+  parameter: string;
+  value: string;
+  unit_or_range?: string | null;
+  reference_note?: string | null;
+}
+
+export interface StammdatenResponse {
+  items: StammdatenItem[];
+  updated_at: string | null;
 }
 
 export interface CompletedWorkoutItem {
@@ -42,6 +57,16 @@ export interface CompletedWorkoutItem {
   date_local: string;
   duration_min: number;
   distance_km: number;
+  avg_pace_sec_per_km?: number | null;
+  avg_pace_min_per_km?: string | null;
+  avg_cadence_spm?: number | null;
+  max_cadence_spm?: number | null;
+  avg_stride_m?: number | null;
+  avg_power_w?: number | null;
+  elevation_gain_m?: number | null;
+  aerobic_te?: number | null;
+  anaerobic_te?: number | null;
+  steps?: number | null;
   avg_hr: number | null;
   max_hr: number | null;
   calories: number | null;
@@ -59,6 +84,13 @@ export interface WeeklyTrainingPoint {
 
 export interface TrainingDashboardResponse {
   reference_date: string;
+  days_requested?: number;
+  window_start?: string;
+  window_end?: string;
+  ran_km_window?: number;
+  strength_minutes_window?: number;
+  completed_workouts_window?: number;
+  window_activities?: CompletedWorkoutItem[];
   current_week_start: string;
   current_week_end: string;
   ran_km_this_week: number;
@@ -82,6 +114,16 @@ export interface PlanDayItem {
   actual_duration_min: number | null;
   actual_avg_hr: number | null;
   actual_max_hr: number | null;
+  actual_pace_min_per_km?: string | null;
+  actual_cadence_spm?: number | null;
+  actual_stride_m?: number | null;
+  actual_power_w?: number | null;
+  actual_training_load?: number | null;
+  actual_aerobic_te?: number | null;
+  actual_anaerobic_te?: number | null;
+  actual_calories?: number | null;
+  rpe?: number | null;
+  notes?: string | null;
   garmin_workout_id: number | null;
   garmin_schedule_id: number | null;
   status: PlanDayStatus;
@@ -96,6 +138,7 @@ export interface TrainingPlanResponse {
   notes: string | null;
   updated_at: string | null;
   days: PlanDayItem[];
+  stammdaten?: StammdatenItem[];
 }
 
 export interface PlanSyncResponse {

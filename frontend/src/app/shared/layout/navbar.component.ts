@@ -1,45 +1,47 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { GarminApiService } from '../../core/api/garmin-api.service';
+import { formatGermanDateTime } from '../../core/format/german-format';
 
 @Component({
   selector: 'app-navbar',
   imports: [RouterLink, RouterLinkActive],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   template: `
-    <header class="border-b border-slate-200 bg-white">
+    <header class="border-b border-slate-800 bg-slate-900/95 backdrop-blur-sm">
       <div
         class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6"
       >
         <div class="flex items-center gap-8">
-          <a routerLink="/training" class="flex items-center gap-3 text-slate-900 no-underline">
+          <a routerLink="/training" class="flex items-center gap-3 text-slate-100 no-underline">
             <span
-              class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 font-mono text-xs font-bold text-sky-400"
+              class="flex h-8 w-8 items-center justify-center rounded-md border border-sky-500/30 bg-slate-950 font-mono text-xs font-bold text-sky-400"
               aria-hidden="true"
             >
               F7S
             </span>
             <div>
-              <span class="block text-base font-semibold tracking-tight text-slate-900">
+              <span class="block text-base font-semibold tracking-tight text-slate-100">
                 Garmin Monitor
               </span>
-              <span class="block text-xs text-slate-500">Fenix 7S Telemetry &amp; Plan Engine</span>
+              <span class="block text-xs text-slate-400">Fenix 7S Telemetry &amp; Plan Engine</span>
             </div>
           </a>
 
           <nav class="flex items-center gap-1" aria-label="Primary navigation">
             <a
               routerLink="/training"
-              routerLinkActive="bg-sky-50 text-sky-700 border-sky-600"
-              class="rounded-md border-b-2 border-transparent px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+              routerLinkActive="bg-sky-500/15 text-sky-400 border-sky-400"
+              class="rounded-md border-b-2 border-transparent px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100"
               data-testid="nav-training"
             >
               Training
             </a>
             <a
               routerLink="/health"
-              routerLinkActive="bg-sky-50 text-sky-700 border-sky-600"
-              class="rounded-md border-b-2 border-transparent px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+              routerLinkActive="bg-sky-500/15 text-sky-400 border-sky-400"
+              class="rounded-md border-b-2 border-transparent px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-slate-100"
               data-testid="nav-health"
             >
               Health
@@ -48,22 +50,22 @@ import { GarminApiService } from '../../core/api/garmin-api.service';
         </div>
 
         <div class="flex items-center gap-4">
-          <div class="flex items-center gap-2 text-xs text-slate-600" data-testid="sync-status">
+          <div class="flex items-center gap-2 text-xs text-slate-300" data-testid="sync-status">
             @switch (api.syncBadgeState()) {
               @case ('ok') {
-                <span class="h-2 w-2 rounded-full bg-teal-600" aria-hidden="true"></span>
+                <span class="h-2 w-2 rounded-full bg-teal-400" aria-hidden="true"></span>
               }
               @case ('syncing') {
                 <span
-                  class="h-2 w-2 animate-pulse rounded-full bg-amber-500"
+                  class="h-2 w-2 animate-pulse rounded-full bg-amber-400"
                   aria-hidden="true"
                 ></span>
               }
               @case ('error') {
-                <span class="h-2 w-2 rounded-full bg-red-600" aria-hidden="true"></span>
+                <span class="h-2 w-2 rounded-full bg-red-400" aria-hidden="true"></span>
               }
               @default {
-                <span class="h-2 w-2 rounded-full bg-slate-400" aria-hidden="true"></span>
+                <span class="h-2 w-2 rounded-full bg-slate-500" aria-hidden="true"></span>
               }
             }
             <span class="font-mono tabular-nums">{{ lastSyncLabel() }}</span>
@@ -74,7 +76,7 @@ import { GarminApiService } from '../../core/api/garmin-api.service';
             (click)="onSyncNow()"
             [disabled]="api.isSyncing()"
             data-testid="sync-now-btn"
-            class="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+            class="inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             @if (api.isSyncing()) {
               <span>Syncing...</span>
@@ -105,7 +107,7 @@ export class NavbarComponent implements OnInit {
     if (!ts) {
       return 'Last sync: ok';
     }
-    return `Last sync: ${ts.slice(0, 16).replace('T', ' ')} UTC`;
+    return `Last sync: ${formatGermanDateTime(ts, s.timezone || 'Europe/Vienna')}`;
   });
 
   ngOnInit(): void {

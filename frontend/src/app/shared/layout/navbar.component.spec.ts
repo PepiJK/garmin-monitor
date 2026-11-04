@@ -36,7 +36,7 @@ describe('NavbarComponent', () => {
 
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('Last sync: 2026-11-03 08:16 UTC');
+    expect(el.textContent).toContain('Last sync: 03.11.2026, 09:16');
 
     const syncBtn = el.querySelector('[data-testid="sync-now-btn"]') as HTMLButtonElement;
     syncBtn.click();
@@ -63,7 +63,7 @@ describe('NavbarComponent', () => {
         timezone: 'Europe/Vienna',
       }),
     );
-    httpMock.match('/api/training/dashboard?weeks=12').forEach((r) => r.flush({}));
+    httpMock.match('/api/training/dashboard?days=30').forEach((r) => r.flush({}));
     httpMock.match('/api/training/plan').forEach((r) => r.flush({}));
 
     await fixture.whenStable();

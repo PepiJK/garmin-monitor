@@ -1,6 +1,6 @@
 services:
   garmin-monitor:
-    image: ghcr.io/${GITHUB_REPOSITORY:-josef/garmin-monitor}:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GITHUB_REPOSITORY:-pepijk/garmin-monitor}:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile

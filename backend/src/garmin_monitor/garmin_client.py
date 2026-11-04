@@ -156,6 +156,20 @@ class GarminClient:
         )
         return list(result) if isinstance(result, list) else []
 
+    def fetch_activity_detail(self, activity_id: int | str) -> JsonDict | None:
+        """Fetch detailed activity payload (including directWorkoutRpe and directWorkoutFeel)."""
+        if not hasattr(self.api, "get_activity"):
+            return None
+        try:
+            res = self._call_with_backoff(
+                lambda: self.api.get_activity(activity_id),
+                f"get_activity({activity_id})",
+            )
+            return dict(res) if isinstance(res, dict) else None
+        except Exception as exc:
+            logger.debug(f"Activity detail {activity_id} unavailable: {exc}")
+            return None
+
     def _safe_fetch_dict(self, fn: Callable[[], Any], metric_name: str) -> Any:
         """Fetch an optional daily wellness endpoint, returning None if unavailable for a day."""
         try:
@@ -225,3 +239,33 @@ class GarminClient:
             lambda: self.api.unschedule_workout(schedule_id),
             f"unschedule_workout({schedule_id})",
         )
+
+    def send_scheduled_workouts_to_devices(self) -> None:
+        """Trigger Garmin Connect to queue scheduled calendar workouts to user devices."""
+        if not hasattr(self.api, "send_scheduled_workouts_to_devices"):
+            return
+        try:
+            self._call_with_backoff(
+                lambda: self.api.send_scheduled_workouts_to_devices(),
+                "send_scheduled_workouts_to_devices",
+            )
+        except Exception as exc:
+            logger.debug(f"Optional send_scheduled_workouts_to_devices call skipped: {exc}")
+
+    def get_scheduled_workouts_by_period(
+        self,
+        start_date: str,
+        end_date: str,
+    ) -> list[JsonDict] | None:
+        """Fetch scheduled calendar workouts between start_date and end_date (inclusive)."""
+        if not hasattr(self.api, "get_scheduled_workouts_by_period"):
+            return None
+        try:
+            res = self._call_with_backoff(
+                lambda: self.api.get_scheduled_workouts_by_period(start_date, end_date),
+                f"get_scheduled_workouts_by_period({start_date}, {end_date})",
+            )
+            return list(res) if isinstance(res, list) else None
+        except Exception as exc:
+            logger.debug(f"Optional get_scheduled_workouts_by_period call skipped: {exc}")
+            return None

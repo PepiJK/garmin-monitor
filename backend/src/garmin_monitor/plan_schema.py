@@ -39,6 +39,26 @@ class WorkoutStepSpec(BaseModel):
         return self
 
 
+class StammdatenEntrySpec(BaseModel):
+    """Single row of athlete master data / performance diagnostics (Stammdaten)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: str
+    parameter: str
+    value: str
+    unit_or_range: str | None = None
+    reference_note: str | None = None
+
+
+class StammdatenSpec(BaseModel):
+    """Standalone Stammdaten payload for CLI import/export."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stammdaten: list[StammdatenEntrySpec]
+
+
 class PlanDaySpec(BaseModel):
     """Single calendar day within a training plan."""
 
@@ -55,6 +75,20 @@ class PlanDaySpec(BaseModel):
     hr_max: int | None = Field(default=None, ge=30, le=240)
     steps: list[WorkoutStepSpec] = Field(default_factory=list)
     status: PlanDayStatus | None = None
+    actual_km: float | None = Field(default=None, ge=0.0)
+    actual_duration_min: float | None = Field(default=None, ge=0.0)
+    actual_avg_hr: int | None = Field(default=None, ge=30, le=240)
+    actual_max_hr: int | None = Field(default=None, ge=30, le=240)
+    actual_pace_min_per_km: str | None = None
+    actual_cadence_spm: int | None = Field(default=None, ge=0)
+    actual_stride_m: float | None = Field(default=None, ge=0.0)
+    actual_power_w: int | None = Field(default=None, ge=0)
+    actual_training_load: float | None = Field(default=None, ge=0.0)
+    actual_aerobic_te: float | None = Field(default=None, ge=0.0)
+    actual_anaerobic_te: float | None = Field(default=None, ge=0.0)
+    actual_calories: int | None = Field(default=None, ge=0)
+    rpe: int | None = Field(default=None, ge=1, le=10)
+    notes: str | None = None
 
     @model_validator(mode="after")
     def validate_day_constraints(self) -> Self:
@@ -79,6 +113,7 @@ class TrainingPlanSpec(BaseModel):
 
     name: str
     notes: str | None = None
+    stammdaten: list[StammdatenEntrySpec] | None = None
     days: list[PlanDaySpec]
 
     @model_validator(mode="after")
@@ -122,6 +157,25 @@ def load_plan_from_file(path: Path) -> tuple[TrainingPlanSpec, str]:
     raw_text = path.read_text(encoding="utf-8")
     spec = load_plan_from_text(raw_text)
     return spec, raw_text
+
+
+def load_stammdaten_from_file(path: Path) -> list[StammdatenEntrySpec]:
+    """Load and validate Stammdaten entries from a YAML/JSON file."""
+    raw_text = path.read_text(encoding="utf-8")
+    stripped = raw_text.strip()
+    parsed = json.loads(stripped) if stripped.startswith("{") else yaml.safe_load(stripped)
+    if isinstance(parsed, list):
+        return [StammdatenEntrySpec.model_validate(item) for item in parsed]
+    if isinstance(parsed, dict) and "stammdaten" in parsed:
+        return [StammdatenEntrySpec.model_validate(item) for item in parsed["stammdaten"]]
+    raise ValueError("Stammdaten file must contain a 'stammdaten' list or top-level list")
+
+
+def dump_stammdaten_to_yaml(entries: list[StammdatenEntrySpec]) -> str:
+    """Serialize Stammdaten entries into clean YAML."""
+    spec = StammdatenSpec(stammdaten=entries)
+    payload = spec.model_dump(mode="json", exclude_none=True)
+    return yaml.safe_dump(payload, sort_keys=False, allow_unicode=True)
 
 
 def dump_plan_to_yaml(plan: TrainingPlanSpec) -> str:

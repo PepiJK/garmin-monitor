@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TrainingPlanResponse } from '../../core/api/garmin-api.models';
 import { TrainingPlanTabComponent } from './training-plan-tab.component';
+import { TrainingStammdatenTabComponent } from './training-stammdaten-tab.component';
 
 const SAMPLE_PLAN: TrainingPlanResponse = {
   has_active_plan: true,
@@ -143,6 +144,8 @@ describe('TrainingPlanTabComponent', () => {
     expect(el.querySelector('[data-testid="plan-title"]')?.textContent).toContain(
       'Vienna Autumn 10K Plan',
     );
+    expect(el.textContent).toContain('Sun, 01.11.2026');
+    expect(el.textContent).toContain('Mon, 02.11.2026');
     expect(el.querySelector('[data-testid="status-badge-done"]')?.textContent).toContain('done');
     expect(el.querySelector('[data-testid="status-badge-partial"]')?.textContent).toContain(
       'partial',
@@ -155,8 +158,76 @@ describe('TrainingPlanTabComponent', () => {
       'pending',
     );
 
+    const planTable = el.querySelector('[data-testid="training-plan-table"]') as HTMLTableElement;
+    expect(planTable.querySelector('thead')?.classList.contains('sticky')).toBe(true);
+    expect(planTable.querySelector('thead')?.classList.contains('top-0')).toBe(true);
+    expect(planTable.querySelector('thead th')?.classList.contains('sticky')).toBe(true);
+
     const syncBtn = el.querySelector('[data-testid="sync-plan-watch-btn"]') as HTMLButtonElement;
     syncBtn.click();
     expect(syncClicked).toBe(true);
+
+    const notesTextarea = el.querySelector(
+      '[data-testid="notes-input-2026-11-01"]',
+    ) as HTMLTextAreaElement;
+    expect(notesTextarea).not.toBeNull();
+    expect(notesTextarea.tagName).toBe('TEXTAREA');
+
+    const updatedEvents: { date: string; notes: string }[] = [];
+    fixture.componentInstance.updateNotes.subscribe((evt) => {
+      updatedEvents.push(evt);
+    });
+
+    notesTextarea.value = 'Mehrzeilige Notiz\nZweite Zeile';
+    notesTextarea.dispatchEvent(new Event('input'));
+    notesTextarea.dispatchEvent(new Event('blur'));
+    await fixture.whenStable();
+
+    expect(updatedEvents).toEqual([
+      { date: '2026-11-01', notes: 'Mehrzeilige Notiz\nZweite Zeile' },
+    ]);
+  });
+
+  it('renders Stammdaten table with category badges', async () => {
+    const fixture = TestBed.createComponent(TrainingStammdatenTabComponent);
+    fixture.componentRef.setInput('items', [
+      {
+        category: 'Athleten-Profil',
+        parameter: 'Name',
+        value: 'Josef Koch',
+        unit_or_range: '-',
+        reference_note: 'Sportordination 10.08.2026',
+      },
+      {
+        category: 'Leistungsdiagnostik',
+        parameter: 'IAS',
+        value: '8.6 km/h',
+        unit_or_range: 'HF 157 bpm',
+        reference_note: 'Aerobe Schwelle',
+      },
+      {
+        category: 'Trainingszonen (Garmin)',
+        parameter: 'Zone 2',
+        value: '140 - 155',
+        unit_or_range: 'bpm',
+        reference_note: 'GAT1',
+      },
+      {
+        category: 'Hardware',
+        parameter: 'Uhr',
+        value: 'Fenix 7s',
+      },
+    ]);
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    const stammdatenTable = el.querySelector(
+      '[data-testid="stammdaten-table"]',
+    ) as HTMLTableElement;
+    expect(stammdatenTable).not.toBeNull();
+    expect(stammdatenTable.querySelector('thead')?.classList.contains('sticky')).toBe(true);
+    expect(stammdatenTable.querySelector('thead')?.classList.contains('top-0')).toBe(true);
+    expect(stammdatenTable.querySelector('thead th')?.classList.contains('sticky')).toBe(true);
+    expect(el.textContent).toContain('Josef Koch');
+    expect(el.textContent).toContain('Fenix 7s');
   });
 });

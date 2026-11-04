@@ -49,7 +49,7 @@ describe('AppComponent', () => {
     expect(compiled.textContent).toContain('Garmin Monitor');
     expect(compiled.textContent).toContain('Training');
     expect(compiled.textContent).toContain('Health');
-    expect(compiled.textContent).toContain('Last sync: 2026-11-03 08:01 UTC');
+    expect(compiled.textContent).toContain('Last sync: 03.11.2026, 09:01');
   });
 
   it('should redirect root path to /training and navigate to /health', async () => {
@@ -57,7 +57,7 @@ describe('AppComponent', () => {
     const router = TestBed.inject(Router);
 
     await harness.navigateByUrl('/');
-    httpMock.match('/api/training/dashboard?weeks=12').forEach((r) =>
+    httpMock.match('/api/training/dashboard?days=30').forEach((r) =>
       r.flush({
         reference_date: '2026-11-03',
         current_week_start: '2026-11-02',
