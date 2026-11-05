@@ -1,3 +1,7 @@
+---
+description: Main instructions for Garmin Monitor, covering tech stack, workflows, contracts, and documentation.
+---
+
 # AGENTS.md — Garmin Monitor Agent Guide
 
 ## 1. Project & Stack Overview
@@ -7,19 +11,37 @@
 - **Backend (`backend/`)**: Python `3.14.9` (`.python-version`), FastAPI, Uvicorn, Pydantic v2, SQLite 3 (`WAL` mode at `data/garmin.db`), `python-garminconnect`, `asyncio.TaskGroup` scheduler. Main package: `backend/src/garmin_monitor/` (`main.py`, `cli.py`, `db.py`, `api/`). Tests: `backend/tests/`.
 - **Frontend (`frontend/`)**: Node `26.13.0` (`npm 11.20.0`), Angular `22.2` Standalone SPA (`OnPush`, Signals), Tailwind CSS v4, Apache ECharts (`ngx-echarts` SVG). Main app: `frontend/src/app/` (`core/`, `shared/`, `features/training/`, `features/health/`).
 - **Container & Deploy**: Multi-stage `Dockerfile`, `docker-compose.yml` (`mem_limit: 384m`, `pepnet_web_net`), `deploy/Caddyfile.garmin.snippet`, `.github/workflows/{ci,cd}.yml`.
+- **Quality**: Ruff (`py314`) and `pytest` (`>= 80%` coverage) for `backend/`; ESLint (`angular-eslint`), Prettier, and Vitest (`>= 80%` coverage) for `frontend/`.
+- **CI/CD**: `.github/workflows/ci.yml` (pull request & push quality gates) and `.github/workflows/cd.yml` (release image build to `ghcr.io` and SSH rollout to `pepnet.at`).
+
+---
+
+## Documented workflows
+
+- For Backend work, read `backend/AGENTS.md`.
+- For Frontend work, read `frontend/AGENTS.md`.
+- Before creating a branch, read `docs/agents/branch-template.md`.
+- Before creating a commit, read `docs/agents/commit-template.md`.
+- Before creating an issue or work item, read `docs/agents/issue-template-guidance.md`.
+- Before creating or updating a pull request, read `docs/agents/pull-request-template.md`.
+- Before creating a release, read `.github/release_template.md`.
+- Before locating code or doing structural or cross-component work, read `ARCHITECTURE.md`; update it in the same change when structure, components, data stores, integrations, or invariants change, and add each settled domain term to its Domain language section as `**Term**:` with a one- or two-sentence definition followed by `_Avoid_:` synonyms.
+- Before working in an area, read the ADRs in `docs/adr/` that touch it and flag any conflict explicitly; record a decision without asking when it is hard to reverse, surprising without context, and the result of a real trade-off, using `docs/adr/NNNN-kebab-slug.md` with a short title and 1-3 sentences on context, decision, and why, and supersede rather than rewrite a changed decision.
 
 ---
 
 ## 2. Documentation & Accountability (`docs/`)
 
-Canonical specifications live in [`docs/`](./docs/README.md):
+Canonical specifications live in [`ARCHITECTURE.md`](./ARCHITECTURE.md), [`frontend/DESIGN.md`](./frontend/DESIGN.md), and [`docs/`](./docs/README.md):
 - [`docs/README.md`](./docs/README.md) — Documentation index
-- [`docs/requirements-and-architecture.md`](./docs/requirements-and-architecture.md) — Architecture, SQLite schemas, API endpoints, sync/matching/warning rules & code standards
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Architecture, SQLite schemas, API endpoints, sync/matching/warning rules, invariants, domain language & code standards
 - [`docs/operations-and-cli-playbook.md`](./docs/operations-and-cli-playbook.md) — `pepnet.at` SSH inspection, SQLite queries, and `plan` / `stammdaten` CLI & YAML schemas
-- [`docs/design-system.md`](./docs/design-system.md) — *Alpine Telemetry Lab* palette, typography (`tabular-nums`), German formatting & layout rules
+- [`frontend/DESIGN.md`](./frontend/DESIGN.md) — *Alpine Telemetry Lab* palette, typography (`tabular-nums`), German formatting & layout rules
 - [`docs/roadmap-and-acceptance-criteria.md`](./docs/roadmap-and-acceptance-criteria.md) — Roadmap, acceptance criteria & log of implemented features
+- [`docs/agents/`](./docs/agents/branch-template.md) — Branch, commit, issue, and pull request workflow templates
+- [`docs/adr/`](./docs/adr/.gitkeep) — Architecture Decision Records
 
-**Rule**: Read the relevant `docs/` before making changes. Whenever you implement or modify features, schemas, endpoints, CLI commands, or UI behavior, **update or add to `docs/`** (using relative links) so the documentation always keeps account of everything implemented.
+**Rule**: Read the relevant documentation before making changes. Whenever you implement or modify features, schemas, endpoints, CLI commands, or UI behavior, **update `ARCHITECTURE.md`, `frontend/DESIGN.md`, or `docs/`** (using relative links) so the documentation always keeps account of everything implemented.
 
 ---
 
@@ -66,4 +88,4 @@ docker compose up --build -d && curl -fsS http://127.0.0.1:8000/api/healthz
 ```
 
 ### Step 4: Update `docs/`
-Record any new or modified capabilities, schemas, endpoints, or operational commands in [`docs/`](./docs/README.md).
+Record any new or modified capabilities, schemas, endpoints, or operational commands in [`ARCHITECTURE.md`](./ARCHITECTURE.md), [`frontend/DESIGN.md`](./frontend/DESIGN.md), and [`docs/`](./docs/README.md).
