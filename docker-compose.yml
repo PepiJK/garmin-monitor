@@ -5,10 +5,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: garmin-monitor
+    user: "${PUID:-1000}:${PGID:-1000}"
     restart: unless-stopped
     mem_limit: 384m
     environment:
       TZ: ${TZ:-Europe/Vienna}
+      HOME: /data
       DATABASE_PATH: /data/garmin.db
       GARMIN_TOKEN_DIR: /data/garmin_tokens
       STATIC_DIR: /app/static

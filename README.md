@@ -78,15 +78,13 @@ See [`docs/operations-and-cli-playbook.md`](./docs/operations-and-cli-playbook.m
 
 ## Production Deployment on `pepnet.at` (`garmin.pepnet.at`)
 
-### 1. One-Time Server Bootstrap (`/opt/garmin-monitor`)
+### 1. One-Time Server Bootstrap (`/opt/pepnet/garmin-monitor`)
 
-SSH into `pepnet.at` (`ssh josef@pepnet.at`) and clone this repository into `/opt/garmin-monitor` (separate from `/opt/pepnet`):
+SSH into `pepnet.at` (`ssh josef@pepnet.at`) and clone this repository into `/opt/pepnet/garmin-monitor`:
 
 ```bash
-sudo mkdir -p /opt/garmin-monitor
-sudo chown josef:josef /opt/garmin-monitor
-git clone https://github.com/PepiJK/garmin-monitor.git /opt/garmin-monitor
-cd /opt/garmin-monitor
+git clone https://github.com/PepiJK/garmin-monitor.git /opt/pepnet/garmin-monitor
+cd /opt/pepnet/garmin-monitor
 mkdir -p data/garmin_tokens
 ```
 
@@ -95,7 +93,7 @@ mkdir -p data/garmin_tokens
 Authenticate once interactively so the background 2-hour sync daemon can refresh OAuth tokens headlessly without MFA prompts or `429` lockouts:
 
 ```bash
-cd /opt/garmin-monitor
+cd /opt/pepnet/garmin-monitor
 docker compose run --rm garmin-monitor \
   python -m garmin_monitor auth login --email <GARMIN_EMAIL>
 ```
@@ -126,7 +124,7 @@ docker exec garmin-monitor python -m garmin_monitor sync --days 90
 Publishing a GitHub Release triggers [`.github/workflows/cd.yml`](./.github/workflows/cd.yml) on `ubuntu-latest`:
 1. Runs backend (`ruff`, `pytest` ≥ 80% coverage) and frontend (`eslint`, `prettier`, `ng test` ≥ 80% coverage) quality gates using `.python-version` and `frontend/package.json`.
 2. Builds the multi-stage Docker image and pushes `:latest` and `:<release-tag>` to `ghcr.io` using `GITHUB_TOKEN`.
-3. SSHes into `pepnet.at`, checks out the release tag in `/opt/garmin-monitor`, pulls the pre-built image from `ghcr.io` (zero image build RAM overhead on the 3.7 GiB host), restarts `garmin-monitor` via `docker compose up -d`, prunes old images, and verifies `/api/healthz`.
+3. SSHes into `pepnet.at`, checks out the release tag in `/opt/pepnet/garmin-monitor`, pulls the pre-built image from `ghcr.io` (zero image build RAM overhead on the 3.7 GiB host), restarts `garmin-monitor` via `docker compose up -d`, prunes old images, and verifies `/api/healthz`.
 
 #### Required GitHub Repository Secrets
 

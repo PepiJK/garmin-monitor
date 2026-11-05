@@ -118,10 +118,11 @@ jobs:
           ssh -i ~/.ssh/id_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "GHCR_ACTOR='${GHCR_ACTOR}' GHCR_TOKEN='${GHCR_TOKEN}' GITHUB_REPOSITORY='${IMAGE_REPO}' IMAGE_TAG='${IMAGE_TAG}' bash -s" << 'EOF'
             set -euo pipefail
-            cd /opt/garmin-monitor
+            cd /opt/pepnet/garmin-monitor
 
             git fetch --tags --prune
             git checkout "${IMAGE_TAG}"
+            mkdir -p data/garmin_tokens
 
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_ACTOR}" --password-stdin
             GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" IMAGE_TAG="${IMAGE_TAG}" docker compose pull

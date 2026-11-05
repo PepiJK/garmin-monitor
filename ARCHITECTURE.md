@@ -75,7 +75,7 @@ flowchart LR
 5. **Quality Gates & GitHub Free CI/CD**:
    - Python 3.14 (`3.14.9`) with Ruff linting/formatting and `pytest` ≥ 80% coverage.
    - Node LTS (`26.13.0`) + Angular Standalone SPA with ESLint, Prettier, and headless unit tests ≥ 80% coverage.
-   - GitHub Actions CI (`ci.yml`) and Release CD (`cd.yml`) deploying to `/opt/garmin-monitor` on `pepnet.at` behind Caddy `basic_auth`.
+   - GitHub Actions CI (`ci.yml`) and Release CD (`cd.yml`) deploying to `/opt/pepnet/garmin-monitor` on `pepnet.at` behind Caddy `basic_auth`.
 
 ### Explicit Non-Goals
 - No web UI forms for authoring or editing training plan structure or workouts (structural mutations occur via CLI + AI on server; only per-day `notes` are editable inline in the `Plan` table).
@@ -90,7 +90,7 @@ flowchart LR
 ## 2. Deployment & Infrastructure
 
 - `Single Unified Container (garmin-monitor)`: Multi-stage `Dockerfile` (`node:26-alpine` build stage + `python:3.14-slim` runtime stage) running with `mem_limit: 384m` on port `8000` (`127.0.0.1:8000:8000`), serving `/api/*`, static SPA assets (`/app/static`), and the in-process background sync scheduler.
-- `Production Host (/opt/garmin-monitor on pepnet.at)`: Joined to external Docker network `pepnet_web_net` with `./data:/data` bind-mounted for `/data/garmin.db` and `/data/garmin_tokens/`.
+- `Production Host (/opt/pepnet/garmin-monitor on pepnet.at)`: Joined to external Docker network `pepnet_web_net` with `./data:/data` bind-mounted for `/data/garmin.db` and `/data/garmin_tokens/`.
 - `Reverse Proxy & Authentication`: HTTP Basic Auth enforced at `/opt/pepnet/caddy/Caddyfile` (`basic_auth` + `reverse_proxy garmin-monitor:8000`); Angular uses relative `/api/*` paths so the browser automatically attaches the cached `Authorization` header.
 - `Timezone & Week Convention`: Default timezone `Europe/Vienna`; weekly training aggregations use ISO-8601 weeks (Monday `00:00:00` through Sunday `23:59:59`).
 

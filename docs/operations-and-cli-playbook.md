@@ -1,6 +1,6 @@
 # Server AI & Developer Operational Playbook (`pepnet.at`)
 
-This document guides AI coding/coaching agents and operators managing **Garmin Monitor** (`https://garmin.pepnet.at`) both from a developer workstation via read-only SSH and directly on the `pepnet.at` server (`/opt/garmin-monitor`).
+This document guides AI coding/coaching agents and operators managing **Garmin Monitor** (`https://garmin.pepnet.at`) both from a developer workstation via read-only SSH and directly on the `pepnet.at` server (`/opt/pepnet/garmin-monitor`).
 
 ---
 
@@ -10,7 +10,7 @@ This document guides AI coding/coaching agents and operators managing **Garmin M
 - **Read-Only SSH Access**:
   - From the workstation, inspect production state via `ssh josef@pepnet.at`:
     - Reverse proxy stack: `/opt/pepnet/docker-compose.yml` and `/opt/pepnet/caddy/Caddyfile` (`caddy:2-alpine` v2.11.7 attached to Docker network `pepnet_web_net`).
-    - Garmin Monitor stack: `/opt/garmin-monitor/docker-compose.yml` (`container_name: garmin-monitor`, `mem_limit: 384m`, bind-mounting `/opt/garmin-monitor/data:/data`).
+    - Garmin Monitor stack: `/opt/pepnet/garmin-monitor/docker-compose.yml` (`container_name: garmin-monitor`, `mem_limit: 384m`, bind-mounting `/opt/pepnet/garmin-monitor/data:/data`).
 - **Quick Server Diagnostics**:
   ```bash
   ssh josef@pepnet.at "docker ps && docker logs --tail 50 garmin-monitor"
@@ -20,7 +20,7 @@ This document guides AI coding/coaching agents and operators managing **Garmin M
 
 ## 2. Inspecting Training & Physiological Data on `pepnet.at`
 
-Inside `/opt/garmin-monitor`, the SQLite database (WAL mode) resides at `/opt/garmin-monitor/data/garmin.db` (`/data/garmin.db` inside the `garmin-monitor` container).
+Inside `/opt/pepnet/garmin-monitor`, the SQLite database (WAL mode) resides at `/opt/pepnet/garmin-monitor/data/garmin.db` (`/data/garmin.db` inside the `garmin-monitor` container).
 
 ### 2.1 View Active Training Plan & Stammdaten Summaries
 ```bash
@@ -37,7 +37,7 @@ docker exec garmin-monitor python -m garmin_monitor stammdaten export > stammdat
 ### 2.3 Query Recent Activities & Recovery Metrics Directly via SQLite
 ```bash
 # Last 14 days of completed activities
-sqlite3 -header -column /opt/garmin-monitor/data/garmin.db "
+sqlite3 -header -column /opt/pepnet/garmin-monitor/data/garmin.db "
   SELECT date_local, sport_type, activity_name,
          ROUND(distance_m / 1000.0, 2) AS km,
          ROUND(duration_sec / 60.0, 1) AS min,
@@ -48,7 +48,7 @@ sqlite3 -header -column /opt/garmin-monitor/data/garmin.db "
 "
 
 # Last 14 days of HRV, Sleep, Resting HR, and Readiness
-sqlite3 -header -column /opt/garmin-monitor/data/garmin.db "
+sqlite3 -header -column /opt/pepnet/garmin-monitor/data/garmin.db "
   SELECT date, sleep_score, sleep_qualifier,
          hrv_nightly_avg, hrv_baseline_low, hrv_status,
          resting_hr, body_battery_high, training_readiness_score
@@ -159,7 +159,7 @@ days:
 
 ### 3.3 Applying a Plan or Stammdaten Update on `pepnet.at`
 ```bash
-# Copy or write the updated plan (including optional stammdaten) inside /opt/garmin-monitor/data/plan.yaml
+# Copy or write the updated plan (including optional stammdaten) inside /opt/pepnet/garmin-monitor/data/plan.yaml
 docker exec garmin-monitor python -m garmin_monitor plan apply /data/plan.yaml
 
 # Verify the updated plan and stammdaten summaries
