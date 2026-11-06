@@ -4,16 +4,19 @@ This document guides AI coding/coaching agents and operators managing **Garmin M
 
 ---
 
-## 1. Infrastructure & Read-Only SSH Inspection (`pepnet.at`)
+## 1. Infrastructure & Restricted AI SSH Access (`pepnet.at`)
 
-- **Host**: `pepnet.at` (`2.31.123.162`, `x86_64` Linux)
-- **Read-Only SSH Access**:
-  - From the workstation, inspect production state via `ssh josef@pepnet.at`:
-    - Reverse proxy stack: `/opt/pepnet/docker-compose.yml` and `/opt/pepnet/caddy/Caddyfile` (`caddy:2-alpine` v2.11.7 attached to Docker network `pepnet_web_net`).
+- **Host**: `pepnet.at` (`x86_64` Linux)
+- **AI SSH Access (`ssh pepnet-llm`)**:
+  - AI coding and coaching agents **must** connect using the local `ssh pepnet-llm` SSH alias (which connects as a dedicated, unprivileged user outside the `sudo` and `docker` groups), never as the administrative deployment account.
+  - The AI SSH user has no access to `/opt/pepnet/garmin-monitor/data/garmin_tokens` (`0700`), read-only access to `/opt/pepnet/garmin-monitor/data/garmin.db` (`0644`), and group write access to `/opt/pepnet/garmin-monitor/data/plan.yaml` (`0664`).
+  - Scoped `sudoers` rules allow passwordless execution of `docker ps`, `docker stats --no-stream`, `docker logs *`, and `docker exec garmin-monitor python -m garmin_monitor *`.
+  - **Deployed Stacks**:
+    - Reverse proxy stack: `/opt/pepnet/docker-compose.yml` and `/opt/pepnet/caddy/Caddyfile` (`caddy:2-alpine` attached to Docker network `pepnet_web_net`).
     - Garmin Monitor stack: `/opt/pepnet/garmin-monitor/docker-compose.yml` (`container_name: garmin-monitor`, `mem_limit: 384m`, bind-mounting `/opt/pepnet/garmin-monitor/data:/data`).
 - **Quick Server Diagnostics**:
   ```bash
-  ssh josef@pepnet.at "docker ps && docker logs --tail 50 garmin-monitor"
+  ssh pepnet-llm "sudo docker ps && sudo docker logs --tail 50 garmin-monitor"
   ```
 
 ---
@@ -24,20 +27,21 @@ Inside `/opt/pepnet/garmin-monitor`, the SQLite database (WAL mode) resides at `
 
 ### 2.1 View Active Training Plan & Stammdaten Summaries
 ```bash
-docker exec garmin-monitor python -m garmin_monitor plan summary
-docker exec garmin-monitor python -m garmin_monitor stammdaten summary
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor plan summary"
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor stammdaten summary"
 ```
 
 ### 2.2 Export Current Active Plan & Stammdaten to YAML
 ```bash
-docker exec garmin-monitor python -m garmin_monitor plan export > current_plan.yaml
-docker exec garmin-monitor python -m garmin_monitor stammdaten export > stammdaten.yaml
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor plan export" > current_plan.yaml
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor stammdaten export" > stammdaten.yaml
 ```
 
-### 2.3 Query Recent Activities & Recovery Metrics Directly via SQLite
+### 2.3 Query Recent Activities & Recovery Metrics Directly via SQLite (`?immutable=1`)
+Because the restricted AI SSH user has read-only access (`0644`) to `garmin.db` without write access to the SQLite WAL/SHM files in `/opt/pepnet/garmin-monitor/data/`, pass the `file:...?immutable=1` URI when querying:
 ```bash
 # Last 14 days of completed activities
-sqlite3 -header -column /opt/pepnet/garmin-monitor/data/garmin.db "
+ssh pepnet-llm 'sqlite3 -header -column "file:/opt/pepnet/garmin-monitor/data/garmin.db?immutable=1" "
   SELECT date_local, sport_type, activity_name,
          ROUND(distance_m / 1000.0, 2) AS km,
          ROUND(duration_sec / 60.0, 1) AS min,
@@ -45,17 +49,17 @@ sqlite3 -header -column /opt/pepnet/garmin-monitor/data/garmin.db "
   FROM activities
   ORDER BY start_time_local DESC
   LIMIT 20;
-"
+"'
 
 # Last 14 days of HRV, Sleep, Resting HR, and Readiness
-sqlite3 -header -column /opt/pepnet/garmin-monitor/data/garmin.db "
+ssh pepnet-llm 'sqlite3 -header -column "file:/opt/pepnet/garmin-monitor/data/garmin.db?immutable=1" "
   SELECT date, sleep_score, sleep_qualifier,
          hrv_nightly_avg, hrv_baseline_low, hrv_status,
          resting_hr, body_battery_high, training_readiness_score
   FROM daily_health
   ORDER BY date DESC
   LIMIT 14;
-"
+"'
 ```
 
 ---
@@ -158,15 +162,16 @@ days:
 ```
 
 ### 3.3 Applying a Plan or Stammdaten Update on `pepnet.at`
+`/opt/pepnet/garmin-monitor/data/plan.yaml` has group-writable (`0664`) permissions so the AI SSH account can write updated plan YAML content directly before applying it via the scoped `sudo` CLI rule:
 ```bash
-# Copy or write the updated plan (including optional stammdaten) inside /opt/pepnet/garmin-monitor/data/plan.yaml
-docker exec garmin-monitor python -m garmin_monitor plan apply /data/plan.yaml
+# 1. Upload the updated plan (including optional stammdaten) to /opt/pepnet/garmin-monitor/data/plan.yaml
+cat updated_plan.yaml | ssh pepnet-llm "cat > /opt/pepnet/garmin-monitor/data/plan.yaml"
 
-# Verify the updated plan and stammdaten summaries
-docker exec garmin-monitor python -m garmin_monitor plan summary
-docker exec garmin-monitor python -m garmin_monitor stammdaten summary
+# 2. Apply the plan (or standalone stammdaten) via the container CLI
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor plan apply /data/plan.yaml"
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor stammdaten apply /data/plan.yaml"
 
-# Export or apply standalone Stammdaten
-docker exec garmin-monitor python -m garmin_monitor stammdaten export > stammdaten.yaml
-docker exec garmin-monitor python -m garmin_monitor stammdaten apply /data/plan.yaml
+# 3. Verify the updated plan and stammdaten summaries
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor plan summary"
+ssh pepnet-llm "sudo docker exec garmin-monitor python -m garmin_monitor stammdaten summary"
 ```

@@ -3,7 +3,7 @@
 # ==============================================================================
 # 1. Generate a bcrypt password hash using the running Caddy container:
 #      docker exec -it caddy caddy hash-password
-# 2. Replace <BCRYPT_PASSWORD_HASH> below with the generated $2a$14$... hash.
+# 2. Replace <BASIC_AUTH_USER> and <BCRYPT_PASSWORD_HASH> below with your username and $2a$14$... hash.
 # 3. Append this block to /opt/pepnet/caddy/Caddyfile and reload Caddy:
 #      docker exec caddy caddy reload --config /etc/caddy/Caddyfile
 # ==============================================================================
@@ -12,7 +12,7 @@ garmin.pepnet.at {
 	encode zstd gzip
 
 	basic_auth {
-		josef <BCRYPT_PASSWORD_HASH>
+		<BASIC_AUTH_USER> <BCRYPT_PASSWORD_HASH>
 	}
 
 	reverse_proxy garmin-monitor:8000 {

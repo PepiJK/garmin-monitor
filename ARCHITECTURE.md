@@ -97,7 +97,8 @@ flowchart LR
 ## Security Considerations
 
 - `Caddy Basic Auth Trust Boundary`: External HTTPS requests to `https://garmin.pepnet.at` are authenticated by Caddy before reaching `garmin-monitor:8000` over `pepnet_web_net`; host port `8000` binds strictly to `127.0.0.1`.
-- `Credential & Token Isolation`: `GARMIN_EMAIL`, `GARMIN_PASSWORD`, and persisted OAuth tokens in `GARMIN_TOKEN_DIR` remain on the gitignored `/data` volume and are never returned by `/api/*` responses.
+- `Credential & Token Isolation`: `GARMIN_EMAIL`, `GARMIN_PASSWORD`, and persisted OAuth tokens in `GARMIN_TOKEN_DIR` (`0700` on host) remain on the gitignored `/data` volume and are never returned by `/api/*` responses.
+- `Restricted AI SSH Boundary (ssh pepnet-llm)`: AI agents connect via an unprivileged SSH alias (`pepnet-llm`) outside `sudo` and `docker` groups, restricted via scoped `sudoers` to container diagnostics and the `garmin_monitor` CLI, with read-only `?immutable=1` SQLite access to `garmin.db` and no access to `GARMIN_TOKEN_DIR`.
 - `Non-Root Execution & Static Path Confinement`: The runtime container runs as unprivileged user `garmin` (`UID 10001`), and `serve_spa` verifies `candidate.is_relative_to(static_dir.resolve())` before serving static files.
 
 ---

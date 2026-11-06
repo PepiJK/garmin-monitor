@@ -80,7 +80,7 @@ See [`docs/operations-and-cli-playbook.md`](./docs/operations-and-cli-playbook.m
 
 ### 1. One-Time Server Bootstrap (`/opt/pepnet/garmin-monitor`)
 
-SSH into `pepnet.at` (`ssh josef@pepnet.at`) and clone this repository into `/opt/pepnet/garmin-monitor`:
+SSH into the production host (`ssh <DEPLOY_USER>@<DEPLOY_HOST>`) and clone this repository into `/opt/pepnet/garmin-monitor`:
 
 ```bash
 git clone https://github.com/PepiJK/garmin-monitor.git /opt/pepnet/garmin-monitor
@@ -132,6 +132,10 @@ Configure these secrets under **Settings → Secrets and variables → Actions**
 
 | Secret | Description |
 | :--- | :--- |
-| `DEPLOY_HOST` | `pepnet.at` (or `2.31.123.162`) |
-| `DEPLOY_USER` | `josef` |
-| `DEPLOY_SSH_KEY` | Private SSH key authorized for `josef@pepnet.at` |
+| `DEPLOY_HOST` | Production hostname (`pepnet.at`) |
+| `DEPLOY_USER` | SSH deployment username |
+| `DEPLOY_SSH_KEY` | Private SSH key authorized for `<DEPLOY_USER>@<DEPLOY_HOST>` |
+
+### 5. Restricted AI SSH Access (`ssh pepnet-llm`)
+
+For AI-assisted diagnostics and training plan updates, configure an unprivileged server account (outside `sudo` and `docker` groups) mapped to the local `Host pepnet-llm` alias in `~/.ssh/config`, with scoped `sudoers` access to `docker ps`, `docker logs`, and `docker exec garmin-monitor python -m garmin_monitor ...` (see [`docs/operations-and-cli-playbook.md`](./docs/operations-and-cli-playbook.md)).
