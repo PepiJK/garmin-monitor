@@ -92,6 +92,30 @@ class FakeGarmin:
     def get_training_readiness(self, day: str) -> list[dict[str, Any]]:
         return [{"score": 79, "level": "HIGH"}]
 
+    def get_max_metrics(self, day: str) -> list[dict[str, Any]]:
+        return [
+            {"generic": {" calendarDate": day, "vo2MaxPreciseValue": 48.4, "vo2MaxValue": 48.0}}
+        ]
+
+    def get_race_predictions(
+        self,
+        startdate: str | None = None,
+        enddate: str | None = None,
+        _type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return [
+            {
+                "calendarDate": startdate or "2026-11-02",
+                "time5K": 1275,
+                "time10K": 2650,
+                "timeHalfMarathon": 5865,
+                "timeMarathon": 12210,
+            }
+        ]
+
+    def get_training_status(self, day: str) -> dict[str, Any]:
+        return {"mostRecentTrainingStatus": {"trainingStatusFeedbackPhrase": "PRODUCTIVE_1"}}
+
     def upload_workout(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"workoutId": 555, "workoutName": payload.get("workoutName")}
 
@@ -199,6 +223,12 @@ def test_backoff_and_data_methods(tmp_path: Path) -> None:
     assert bundle["date"] == "2026-11-02"
     assert bundle["user_summary"]["totalSteps"] == 9500
     assert bundle["hrv"]["hrvSummary"]["lastNightAvg"] == 64.0
+    assert bundle["max_metrics"][0]["generic"]["vo2MaxPreciseValue"] == 48.4
+    assert bundle["race_predictions"][0]["time5K"] == 1275
+    assert (
+        bundle["training_status"]["mostRecentTrainingStatus"]["trainingStatusFeedbackPhrase"]
+        == "PRODUCTIVE_1"
+    )
 
     uploaded = client.upload_workout({"workoutName": "Tempo Run"})
     assert uploaded["workoutId"] == 555

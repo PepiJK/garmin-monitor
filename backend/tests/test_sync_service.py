@@ -93,7 +93,22 @@ class StubGarminClient:
             "body_battery": [{"charged": 86, "drained": 29}],
             "spo2": {"averageSpO2": 96.5, "lowestSpO2": 92.0},
             "respiration": {"avgWakingRespirationValue": 14.2},
-            "training_readiness": [{"score": 77, "level": "HIGH"}],
+            "training_readiness": [
+                {
+                    "score": 59,
+                    "level": "MODERATE",
+                    "inputContext": "AFTER_POST_EXERCISE_RESET",
+                    "acuteLoad": 152,
+                    "recoveryTime": 1218,
+                },
+                {
+                    "score": 77,
+                    "level": "HIGH",
+                    "inputContext": "AFTER_WAKEUP_RESET",
+                    "acuteLoad": 92,
+                    "recoveryTime": 60,
+                },
+            ],
         }
 
 

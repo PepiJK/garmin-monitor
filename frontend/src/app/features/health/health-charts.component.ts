@@ -247,6 +247,7 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
   const bbHigh = series.map((d) => d.body_battery_high);
   const bbLow = series.map((d) => d.body_battery_low);
   const readiness = series.map((d) => d.training_readiness_score);
+  const acuteLoad = series.map((d) => d.acute_load ?? null);
 
   return {
     tooltip: {
@@ -258,22 +259,34 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
     legend: {
       top: 0,
       textStyle: { color: '#cbd5e1', fontSize: 11 },
-      data: ['Body Battery High', 'Body Battery Low', 'Training Readiness'],
+      data: ['Body Battery High', 'Body Battery Low', 'Morning Readiness', 'Acute Load (7d)'],
     },
-    grid: { left: 44, right: 20, top: 34, bottom: 28 },
+    grid: { left: 44, right: 44, top: 34, bottom: 28 },
     xAxis: {
       type: 'category',
       data: dates,
       axisLabel: { color: '#94a3b8', fontSize: 11 },
       axisLine: { lineStyle: { color: '#334155' } },
     },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#1e293b' } },
-    },
+    yAxis: [
+      {
+        type: 'value',
+        name: 'Score',
+        min: 0,
+        max: 100,
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#1e293b' } },
+      },
+      {
+        type: 'value',
+        name: 'Load',
+        scale: true,
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { show: false },
+      },
+    ],
     series: [
       {
         name: 'Body Battery High',
@@ -294,13 +307,23 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
         itemStyle: { color: '#94a3b8' },
       },
       {
-        name: 'Training Readiness',
+        name: 'Morning Readiness',
         type: 'line',
         data: readiness,
         smooth: true,
         symbolSize: 5,
         lineStyle: { color: '#38bdf8', width: 2 },
         itemStyle: { color: '#38bdf8' },
+      },
+      {
+        name: 'Acute Load (7d)',
+        type: 'line',
+        yAxisIndex: 1,
+        data: acuteLoad,
+        smooth: true,
+        symbolSize: 4,
+        lineStyle: { color: '#fbbf24', width: 2, type: 'dotted' },
+        itemStyle: { color: '#fbbf24' },
       },
     ],
   };
@@ -363,9 +386,11 @@ export function buildReadinessBatteryChartOptions(series: DailyHealthPoint[]): E
       </div>
 
       <div class="rounded-lg border border-slate-800 bg-slate-900/90 p-5">
-        <h3 class="text-sm font-semibold text-slate-100">Body Battery &amp; Training Readiness</h3>
+        <h3 class="text-sm font-semibold text-slate-100">
+          Body Battery, Morning Readiness &amp; Acute Load
+        </h3>
         <p class="mb-3 text-xs text-slate-400">
-          Peak/trough Body Battery reserve and morning readiness score
+          Peak/trough Body Battery reserve, morning readiness score, and 7-day EPOC acute load
         </p>
         <div
           echarts

@@ -66,9 +66,25 @@ def test_api_health_dashboard_returns_kpis_series_and_warnings(tmp_path: Path) -
                     spo2_low=92.0,
                     respiration_avg=14.5,
                     steps=10500,
-                    training_readiness_score=38 if is_last else 80,
-                    training_readiness_level="LOW" if is_last else "HIGH",
-                    raw_json="{}",
+                    training_readiness_score=38 if is_last else 59,
+                    training_readiness_level="LOW" if is_last else "MODERATE",
+                    raw_json=(
+                        '{"user_summary": {"bodyBatteryChargedValue": 64, '
+                        '"bodyBatteryDrainedValue": 52, "moderateIntensityMinutes": 20, '
+                        '"vigorousIntensityMinutes": 30, "intensityMinutesGoal": 150, '
+                        '"activeKilocalories": 540}, '
+                        '"training_readiness": ['
+                        '{"score": 38, "level": "LOW", '
+                        '"inputContext": "AFTER_POST_EXERCISE_RESET", '
+                        '"acuteLoad": 150, "recoveryTime": 720, "acwrFactorFeedback": "GOOD", '
+                        '"acwrFactorPercent": 96, "feedbackShort": "RECOVERY_IN_PROGRESS"}, '
+                        '{"score": 82, "level": "HIGH", "inputContext": "AFTER_WAKEUP_RESET", '
+                        '"acuteLoad": 126, "recoveryTime": 324, "acwrFactorFeedback": "VERY_GOOD", '
+                        '"acwrFactorPercent": 100, "feedbackShort": "WELL_RECOVERED"}'
+                        "]}"
+                        if is_last
+                        else "{}"
+                    ),
                     synced_at=now_utc.isoformat(),
                 ),
             )
@@ -84,6 +100,17 @@ def test_api_health_dashboard_returns_kpis_series_and_warnings(tmp_path: Path) -
         assert data["kpis"]["sleep_score"] == 52
         assert data["kpis"]["resting_hr"] == 56
         assert data["kpis"]["body_battery_high"] == 41
+        assert data["kpis"]["training_readiness_score"] == 82
+        assert data["kpis"]["training_readiness_level"] == "HIGH"
+        assert data["kpis"]["acute_load"] == 126
+        assert data["kpis"]["recovery_time_hours"] == 5.4
+        assert data["kpis"]["acwr_status"] == "VERY_GOOD"
+        assert data["kpis"]["acwr_percent"] == 100
+        assert data["kpis"]["readiness_feedback"] == "WELL_RECOVERED"
+        assert data["kpis"]["body_battery_charged"] == 64
+        assert data["kpis"]["body_battery_drained"] == 52
+        assert data["kpis"]["intensity_minutes"] == 80
+        assert data["kpis"]["intensity_minutes_goal"] == 150
 
         warning_codes = {w["code"] for w in data["warnings"]}
         assert {

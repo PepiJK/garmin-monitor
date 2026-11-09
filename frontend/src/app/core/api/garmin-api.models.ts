@@ -63,6 +63,19 @@ export interface CompletedWorkoutItem {
   max_cadence_spm?: number | null;
   avg_stride_m?: number | null;
   avg_power_w?: number | null;
+  norm_power_w?: number | null;
+  avg_gct_ms?: number | null;
+  avg_vertical_oscillation_cm?: number | null;
+  avg_vertical_ratio_pct?: number | null;
+  vo2_max?: number | null;
+  training_effect_label?: string | null;
+  total_sets?: number | null;
+  total_reps?: number | null;
+  hr_zone_1_min?: number;
+  hr_zone_2_min?: number;
+  hr_zone_3_min?: number;
+  hr_zone_4_min?: number;
+  hr_zone_5_min?: number;
   elevation_gain_m?: number | null;
   aerobic_te?: number | null;
   anaerobic_te?: number | null;
@@ -80,6 +93,43 @@ export interface WeeklyTrainingPoint {
   running_km: number;
   strength_minutes: number;
   workout_count: number;
+  training_load?: number;
+  hr_zone_1_min?: number;
+  hr_zone_2_min?: number;
+  hr_zone_3_min?: number;
+  hr_zone_4_min?: number;
+  hr_zone_5_min?: number;
+}
+
+export interface Vo2MaxPoint {
+  date: string;
+  vo2_max: number;
+  sport_type: string;
+}
+
+export interface RacePredictionItem {
+  distance_key: string;
+  label: string;
+  distance_km: number;
+  predicted_seconds: number;
+  predicted_time_label: string;
+  predicted_pace_min_per_km: string;
+}
+
+export interface RacePredictionsSummary {
+  as_of_date: string | null;
+  vo2_max_used: number | null;
+  source: string;
+  items: RacePredictionItem[];
+}
+
+export interface HrZoneWindowItem {
+  zone: number;
+  label: string;
+  bpm_range: string;
+  minutes: number;
+  percentage: number;
+  target_percentage: number;
 }
 
 export interface TrainingDashboardResponse {
@@ -98,6 +148,11 @@ export interface TrainingDashboardResponse {
   completed_workouts_this_week: number;
   current_week_activities: CompletedWorkoutItem[];
   weekly_series: WeeklyTrainingPoint[];
+  vo2_max_latest?: number | null;
+  vo2_max_delta?: number | null;
+  vo2_max_series?: Vo2MaxPoint[];
+  race_predictions?: RacePredictionsSummary | null;
+  hr_zones_window?: HrZoneWindowItem[];
 }
 
 export interface PlanDayItem {
@@ -169,9 +224,18 @@ export interface HealthKpiSummary {
   resting_hr_30d_mean: number | null;
   body_battery_high: number | null;
   body_battery_low: number | null;
+  body_battery_charged?: number | null;
+  body_battery_drained?: number | null;
   stress_avg: number | null;
   training_readiness_score: number | null;
   training_readiness_level: string | null;
+  acute_load?: number | null;
+  recovery_time_hours?: number | null;
+  acwr_status?: string | null;
+  acwr_percent?: number | null;
+  readiness_feedback?: string | null;
+  intensity_minutes?: number | null;
+  intensity_minutes_goal?: number | null;
   spo2_avg: number | null;
   respiration_avg: number | null;
   steps: number | null;
@@ -198,11 +262,20 @@ export interface DailyHealthPoint {
   stress_max: number | null;
   body_battery_high: number | null;
   body_battery_low: number | null;
+  body_battery_charged?: number | null;
+  body_battery_drained?: number | null;
   spo2_avg: number | null;
   respiration_avg: number | null;
   steps: number | null;
   training_readiness_score: number | null;
   training_readiness_level: string | null;
+  acute_load?: number | null;
+  recovery_time_hours?: number | null;
+  acwr_status?: string | null;
+  acwr_percent?: number | null;
+  readiness_feedback?: string | null;
+  intensity_minutes?: number | null;
+  active_calories?: number | null;
 }
 
 export interface HealthDashboardResponse {

@@ -51,7 +51,13 @@ def test_api_training_dashboard_and_plan(
                 raw_json=(
                     '{"averageRunningCadenceInStepsPerMinute": 168.4, '
                     '"maxRunningCadenceInStepsPerMinute": 184.0, '
-                    '"avgStrideLength": 118.5, "avgPower": 240.0, "steps": 7560}'
+                    '"avgStrideLength": 118.5, "avgPower": 240.0, "normPower": 252.0, '
+                    '"avgGroundContactTime": 298.4, "avgVerticalOscillation": 7.62, '
+                    '"avgVerticalRatio": 10.4, "trainingEffectLabel": "AEROBIC_BASE", '
+                    '"vO2MaxValue": 49.0, '
+                    '"hrTimeInZone_1": 180.0, "hrTimeInZone_2": 1980.0, '
+                    '"hrTimeInZone_3": 420.0, "hrTimeInZone_4": 120.0, "hrTimeInZone_5": 0.0, '
+                    '"steps": 7560}'
                 ),
                 synced_at="2026-11-03T08:00:00Z",
             ),
@@ -70,7 +76,7 @@ def test_api_training_dashboard_and_plan(
                 max_hr=145,
                 calories=310,
                 training_load=45.0,
-                raw_json="{}",
+                raw_json='{"activeSets": 12, "totalSets": 12, "totalReps": 180}',
                 synced_at="2026-11-03T19:00:00Z",
             ),
         )
@@ -158,7 +164,37 @@ def test_api_training_dashboard_and_plan(
         assert run_item["max_cadence_spm"] == 184
         assert run_item["avg_stride_m"] == 1.19
         assert run_item["avg_power_w"] == 240
+        assert run_item["norm_power_w"] == 252
+        assert run_item["avg_gct_ms"] == 298
+        assert run_item["avg_vertical_oscillation_cm"] == 7.6
+        assert run_item["avg_vertical_ratio_pct"] == 10.4
+        assert run_item["training_effect_label"] == "AEROBIC_BASE"
+        assert run_item["vo2_max"] == 49.0
+        assert run_item["hr_zone_2_min"] == 33.0
         assert run_item["elevation_gain_m"] == 42.0
         assert run_item["aerobic_te"] == 3.2
         assert run_item["anaerobic_te"] == 0.4
         assert run_item["steps"] == 7560
+
+        strength_item = next(
+            a for a in dash_days["window_activities"] if a["sport_type"] == "strength_training"
+        )
+        assert strength_item["total_sets"] == 12
+        assert strength_item["total_reps"] == 180
+
+        assert dash_days["vo2_max_latest"] == 49.0
+        assert len(dash_days["vo2_max_series"]) >= 1
+        assert dash_days["vo2_max_series"][-1]["vo2_max"] == 49.0
+        assert dash_days["race_predictions"] is not None
+        assert len(dash_days["race_predictions"]["items"]) == 4
+        assert [i["distance_key"] for i in dash_days["race_predictions"]["items"]] == [
+            "5k",
+            "10k",
+            "half_marathon",
+            "marathon",
+        ]
+        assert len(dash_days["hr_zones_window"]) == 5
+        z2_summary = next(z for z in dash_days["hr_zones_window"] if z["zone"] == 2)
+        assert z2_summary["minutes"] == 33.0
+        assert z2_summary["percentage"] == 73.3
+        assert z2_summary["target_percentage"] == 65.0

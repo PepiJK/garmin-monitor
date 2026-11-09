@@ -84,6 +84,6 @@ describe('HealthChartsComponent', () => {
     const readyOpts = buildReadinessBatteryChartOptions(SAMPLE_SERIES) as {
       series: { name: string }[];
     };
-    expect(readyOpts.series.length).toBe(3);
+    expect(readyOpts.series.map((s) => s.name)).toContain('Acute Load (7d)');
   });
 });

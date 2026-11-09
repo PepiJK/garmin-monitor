@@ -33,7 +33,7 @@ flowchart LR
 
 ## Core Components
 
-- **Backend API & SPA Host (`backend`)**: FastAPI/Uvicorn service (`garmin_monitor.main:app` on port `8000`) serving REST endpoints (`/api/healthz`, `/api/status`, `/api/sync`, `/api/training/dashboard`, `/api/training/plan`, `/api/training/plan/days/{day_date}/notes`, `/api/training/plan/sync`, `/api/training/stammdaten`, `/api/health/overview`) and compiled Angular static assets with SPA fallback routing.
+- **Backend API & SPA Host (`backend`)**: FastAPI/Uvicorn service (`garmin_monitor.main:app` on port `8000`) serving REST endpoints (`/api/healthz`, `/api/status`, `/api/sync`, `/api/training/dashboard`, `/api/training/plan`, `/api/training/plan/days/{day_date}/notes`, `/api/training/plan/sync`, `/api/training/stammdaten`, `/api/health/dashboard`) and compiled Angular static assets with SPA fallback routing.
 - **In-Process Sync Scheduler (`backend`)**: Background coordinator (`garmin_monitor.scheduler.SyncCoordinator` using `asyncio.TaskGroup` and `asyncio.timeout`) managed by the FastAPI lifespan that triggers periodic 2-hour Garmin Connect sync and plan reconciliation cycles.
 - **Server CLI (`backend`)**: Command-line entrypoint (`python -m garmin_monitor` / `garmin-monitor`) for one-time Garmin SSO authentication (`auth login`), incremental/backfill synchronization (`sync`), training plan management (`plan summary|export|apply|sync`), and athlete master data management (`stammdaten summary|export|apply`).
 - **Web UI (`frontend`)**: Angular 22.2 standalone SPA (`frontend/src/app`) rendering `/training` (`Dashboard`, `Plan`, and `Stammdaten` tabs) and `/health` (severity-ranked diagnostic banners, vitals KPI cards, and `7d / 30d / 90d` ECharts diagrams) over relative `/api/*` calls.
@@ -70,8 +70,8 @@ flowchart LR
 3. **FastAPI REST API (`/api/*`)**: Serves training dashboards, active training plans, inline day-note persistence (`PATCH /api/training/plan/days/{day_date}/notes`), athlete master data (`GET /api/training/stammdaten`), health telemetry, multi-signal health warnings, and sync controls.
 4. **Angular Standalone SPA (`/training` & `/health`)**:
    - Shared global `7d / 30d / 90d` time-window selector across `/training` and `/health`.
-   - `/training`: `Dashboard` tab (selected-window KPIs, completed workouts ledger with cadence/stride/power/TE/load, weekly ECharts diagrams), `Plan` tab (20-column structured sheet with goal-vs-actual telemetry, status badges, and inline auto-saving day notes), and `Stammdaten` tab (athlete profile, lactate/threshold diagnostics, HR zones, and hardware).
-   - `/health`: Severity-ranked (`critical` / `warning`) diagnostic banners, current vitals KPI cards, and `7d / 30d / 90d` ECharts recovery trends.
+   - `/training`: `Dashboard` tab (selected-window KPIs including VO₂ Max & GAT1 Z2 share, `5 km` / `10 km` / `Halbmarathon` / `Marathon` race predictions, 4 ECharts panels including VO₂ Max progression vs. Sportordination lab reference and weekly Z1–Z5 HR time-in-zone distribution, and completed workouts ledger with cadence, stride + ground contact time `ms`, strength sets/reps, power, TE, and load), `Plan` tab (20-column structured sheet with goal-vs-actual telemetry, status badges, and inline auto-saving day notes), and `Stammdaten` tab (athlete profile, lactate/threshold diagnostics, HR zones, and hardware).
+   - `/health`: Severity-ranked (`critical` / `warning`) diagnostic banners, current vitals KPI cards (with true morning `AFTER_WAKEUP_RESET` Training Readiness, 7-day Acute Load, and Body Battery `+charged / -drained`), and `7d / 30d / 90d` ECharts recovery trends (including dual-axis Readiness, Body Battery & 7-day Acute Load).
 5. **Quality Gates & GitHub Free CI/CD**:
    - Python 3.14 (`3.14.9`) with Ruff linting/formatting and `pytest` ≥ 80% coverage.
    - Node LTS (`26.13.0`) + Angular Standalone SPA with ESLint, Prettier, and headless unit tests ≥ 80% coverage.
@@ -203,3 +203,9 @@ Evaluated across the daily health series and sync status, returning severity-ran
 **Health Warning** (`HealthWarning`): A severity-ranked (`critical` or `warning`) physiological or sync-staleness diagnostic computed by `warnings.py` from recent `daily_health` series (HRV status, personal HRV baseline breach, consecutive poor sleep, elevated resting HR, low morning Body Battery) and `sync_runs`. _Avoid_: alert notification, medical alarm, push alert.
 
 **Sync Run** (`sync_runs`): A recorded execution audit row for a scheduled, CLI, or manual (`POST /api/sync`) Garmin Connect synchronization cycle tracking timestamps, requested day window, synced activity/health counts, and `running` / `success` / `error` status. _Avoid_: cron job log, import batch, webhook delivery.
+
+**Morning Training Readiness** (`select_morning_training_readiness`): The daily `AFTER_WAKEUP_RESET` snapshot from Garmin's `training_readiness` payload representing the athlete's waking readiness score (`0–100`), level, 7-day `acute_load`, and `recovery_time_hours`, selected over later intraday post-workout resets. _Avoid_: live readiness, afternoon reset score, current fatigue index.
+
+**Race Predictions** (`RacePredictionsSummary`): Estimated finish times and target paces for `5 km`, `10 km`, `Halbmarathon` (`21,1 km`), and `Marathon` (`42,2 km`) sourced from synced Garmin `race_predictions` telemetry or computed via the Daniels/Firstbeat oxygen-cost velocity model from the latest running VO₂ Max. _Avoid_: personal bests, race goals, target split table.
+
+**HR Zone Distribution** (`HrZoneWindowItem`): Weekly and selected-window running time-in-zone (`hrTimeInZone_1..5`) mapped to the 5 Sportordination heart-rate zones (`Z1 Regeneration` through `Z5 WSA VO2max`) and compared against the `65%` `Z2 GAT1 Basis` (`140–155 bpm`) aerobic base target. _Avoid_: heart rate histogram, cardio buckets, intensity score.

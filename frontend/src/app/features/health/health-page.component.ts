@@ -148,7 +148,12 @@ import { StickyTableHeaderDirective } from '../../shared/directives/sticky-table
                   <th
                     class="sticky top-0 z-20 bg-slate-950 px-4 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
                   >
-                    Readiness
+                    Morning Readiness
+                  </th>
+                  <th
+                    class="sticky top-0 z-20 bg-slate-950 px-4 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
+                  >
+                    Acute Load (7d)
                   </th>
                   <th
                     class="sticky top-0 z-20 bg-slate-950 px-4 py-3 text-right shadow-[inset_0_-1px_0_0_#1e293b]"
@@ -201,6 +206,15 @@ import { StickyTableHeaderDirective } from '../../shared/directives/sticky-table
                       {{
                         row.training_readiness_score !== null
                           ? formatNum(row.training_readiness_score, 0)
+                          : '-'
+                      }}
+                    </td>
+                    <td
+                      class="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-amber-300"
+                    >
+                      {{
+                        row.acute_load !== null && row.acute_load !== undefined
+                          ? formatNum(row.acute_load, 0)
                           : '-'
                       }}
                     </td>

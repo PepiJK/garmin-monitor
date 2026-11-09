@@ -103,7 +103,9 @@ function meanOf(values: (number | null | undefined)[]): number | null {
             / {{ formatNum(bodyBatteryLowAvg(), 0) }}
           </span>
         </div>
-        <p class="mt-1 text-xs text-slate-400">Avg morning reserve ({{ selectedDays() }}d)</p>
+        <p class="mt-1 font-mono text-xs tabular-nums text-slate-400">
+          {{ formatBodyBatteryDelta() }}
+        </p>
       </div>
 
       <!-- Stress Card -->
@@ -132,7 +134,7 @@ function meanOf(values: (number | null | undefined)[]): number | null {
       >
         <div class="flex items-center justify-between">
           <span class="text-xs font-medium text-slate-300">
-            Readiness ({{ selectedDays() }}d)
+            Morning Readiness ({{ selectedDays() }}d)
           </span>
           <span class="font-mono text-xs font-medium text-sky-400">
             {{ kpis()?.training_readiness_level ?? '-' }}
@@ -145,7 +147,7 @@ function meanOf(values: (number | null | undefined)[]): number | null {
           <span class="text-xs text-slate-400">/ 100</span>
         </div>
         <p class="mt-1 font-mono text-xs tabular-nums text-slate-400">
-          Avg steps: {{ formatNum(stepsAvg(), 0) }}
+          {{ formatReadinessContext() }}
         </p>
       </div>
     </section>
@@ -272,5 +274,34 @@ export class HealthKpisComponent {
 
   formatSleepDuration(minutes: number | null): string {
     return formatGermanHoursMinutes(minutes);
+  }
+
+  formatBodyBatteryDelta(): string {
+    const s = this.series();
+    const charged =
+      s.length > 0
+        ? (meanOf(s.map((d) => d.body_battery_charged)) ?? this.kpis()?.body_battery_charged)
+        : this.kpis()?.body_battery_charged;
+    const drained =
+      s.length > 0
+        ? (meanOf(s.map((d) => d.body_battery_drained)) ?? this.kpis()?.body_battery_drained)
+        : this.kpis()?.body_battery_drained;
+    if (charged !== null && charged !== undefined && drained !== null && drained !== undefined) {
+      return `+${formatGermanNumber(charged, 0)} charged / -${formatGermanNumber(drained, 0)} drained`;
+    }
+    return `Avg morning reserve (${this.selectedDays()}d)`;
+  }
+
+  formatReadinessContext(): string {
+    const s = this.series();
+    const acute =
+      s.length > 0
+        ? (meanOf(s.map((d) => d.acute_load)) ?? this.kpis()?.acute_load)
+        : this.kpis()?.acute_load;
+    const stepsStr = `${formatGermanNumber(this.stepsAvg(), 0)} steps`;
+    if (acute !== null && acute !== undefined) {
+      return `Acute load: ${formatGermanNumber(acute, 0)} · ${stepsStr}`;
+    }
+    return `Avg steps: ${formatGermanNumber(this.stepsAvg(), 0)}`;
   }
 }

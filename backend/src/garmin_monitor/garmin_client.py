@@ -174,14 +174,14 @@ class GarminClient:
         """Fetch an optional daily wellness endpoint, returning None if unavailable for a day."""
         try:
             return self._call_with_backoff(fn, metric_name)
-        except GarminClientError as exc:
+        except Exception as exc:
             logger.debug(f"Metric {metric_name} unavailable: {exc}")
             return None
 
     def fetch_daily_health_bundle(self, target_date: date) -> JsonDict:
         """Fetch the complete daily physiological recovery bundle for target_date."""
         day_str = target_date.isoformat()
-        return {
+        bundle: JsonDict = {
             "date": day_str,
             "user_summary": self._safe_fetch_dict(
                 lambda: self.api.get_user_summary(day_str), f"user_summary({day_str})"
@@ -209,6 +209,20 @@ class GarminClient:
                 lambda: self.api.get_training_readiness(day_str), f"training_readiness({day_str})"
             ),
         }
+        if hasattr(self.api, "get_max_metrics"):
+            bundle["max_metrics"] = self._safe_fetch_dict(
+                lambda: self.api.get_max_metrics(day_str), f"max_metrics({day_str})"
+            )
+        if hasattr(self.api, "get_race_predictions"):
+            bundle["race_predictions"] = self._safe_fetch_dict(
+                lambda: self.api.get_race_predictions(day_str, day_str, "daily"),
+                f"race_predictions({day_str})",
+            )
+        if hasattr(self.api, "get_training_status"):
+            bundle["training_status"] = self._safe_fetch_dict(
+                lambda: self.api.get_training_status(day_str), f"training_status({day_str})"
+            )
+        return bundle
 
     def upload_workout(self, workout_payload: JsonDict) -> JsonDict:
         """Upload a structured workout template to Garmin Connect."""

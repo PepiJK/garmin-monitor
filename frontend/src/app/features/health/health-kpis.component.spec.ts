@@ -15,9 +15,13 @@ const SAMPLE_KPIS: HealthKpiSummary = {
   resting_hr_30d_mean: 48.2,
   body_battery_high: 86,
   body_battery_low: 29,
+  body_battery_charged: 64,
+  body_battery_drained: 52,
   stress_avg: 24,
   training_readiness_score: 79,
   training_readiness_level: 'HIGH',
+  acute_load: 126,
+  recovery_time_hours: 5.4,
   spo2_avg: 96.5,
   respiration_avg: 14.2,
   steps: 11250,
@@ -42,8 +46,10 @@ describe('HealthKpisComponent', () => {
     expect(el.querySelector('[data-testid="kpi-sleep"]')?.textContent).toContain('7h 45m');
     expect(el.querySelector('[data-testid="kpi-rhr"]')?.textContent).toContain('47');
     expect(el.querySelector('[data-testid="kpi-body-battery"]')?.textContent).toContain('86');
+    expect(el.querySelector('[data-testid="kpi-body-battery"]')?.textContent).toContain('+64');
     expect(el.querySelector('[data-testid="kpi-stress"]')?.textContent).toContain('24');
     expect(el.querySelector('[data-testid="kpi-readiness"]')?.textContent).toContain('79');
+    expect(el.querySelector('[data-testid="kpi-readiness"]')?.textContent).toContain('126');
 
     // Also test UNBALANCED and LOW HRV status badge classes
     fixture.componentRef.setInput('kpis', { ...SAMPLE_KPIS, hrv_status: 'UNBALANCED' });

@@ -185,6 +185,19 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
+def select_morning_training_readiness(tr_raw: Any) -> JsonDict:
+    """Select the morning (AFTER_WAKEUP_RESET) Training Readiness snapshot when available."""
+    if isinstance(tr_raw, list) and tr_raw:
+        dict_entries = [e for e in tr_raw if isinstance(e, dict)]
+        return next(
+            (e for e in dict_entries if e.get("inputContext") == "AFTER_WAKEUP_RESET"),
+            dict_entries[0] if dict_entries else {},
+        )
+    if isinstance(tr_raw, dict):
+        return tr_raw
+    return {}
+
+
 def parse_activity(raw: JsonDict, tz: ZoneInfo, synced_at: str | None = None) -> ActivityRecord:
     """Convert a raw Garmin Connect activity dictionary into an ActivityRecord."""
     ts_synced = synced_at or datetime.now(UTC).isoformat()
@@ -270,12 +283,7 @@ def parse_daily_health(bundle: JsonDict, synced_at: str | None = None) -> DailyH
         bb_high = bb_high if bb_high is not None else _to_int(bb_raw.get("bodyBatteryHighestValue"))
         bb_low = bb_low if bb_low is not None else _to_int(bb_raw.get("bodyBatteryLowestValue"))
 
-    tr_raw = bundle.get("training_readiness")
-    tr_entry: JsonDict = {}
-    if isinstance(tr_raw, list) and tr_raw and isinstance(tr_raw[0], dict):
-        tr_entry = tr_raw[0]
-    elif isinstance(tr_raw, dict):
-        tr_entry = tr_raw
+    tr_entry = select_morning_training_readiness(bundle.get("training_readiness"))
 
     return DailyHealthRecord(
         date=day_str,

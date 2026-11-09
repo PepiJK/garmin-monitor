@@ -63,7 +63,10 @@ Status colors (`teal-400` / `#2DD4BF`, `amber-400` / `#FBBF24`, `red-400` / `#F8
 
 ## Apache ECharts & Tailwind CSS theming
 
-- **ECharts SVG Rendering**: All charts initialize with `initOpts = { renderer: 'svg' }` via `ngx-echarts` (`frontend/src/app/core/echarts/echarts-core.ts`) using dark-mode axis labels (`#94a3b8`), subtle grid split lines (`#1e293b`), and semantic series colors (`#38bdf8` for running/primary metrics, `#2dd4bf` for strength/HRV baseline bands, `#fbbf24` and `#f87171` for thresholds).
+- **ECharts SVG Rendering**: All charts initialize with `initOpts = { renderer: 'svg' }` via `ngx-echarts` (`frontend/src/app/core/echarts/echarts-core.ts`) using dark-mode axis labels (`#94a3b8`), subtle grid split lines (`#1e293b`), and semantic series colors (`#38bdf8` for running/primary metrics and VO₂ Max progression, `#2dd4bf` for strength/GAT1 Z2 base/HRV baseline bands, `#fbbf24` and `#f87171` for thresholds and Z3–Z5 intensity).
+- **Training & Health Chart Suite**:
+  - `/training` Dashboard renders a 4-card KPI strip (`Running distance`, `Strength volume`, `Completed workouts`, `VO₂ max & GAT1 Base`), a compact 4-distance Race Predictor strip (`5 km`, `10 km`, `Halbmarathon`, `Marathon`), and a 2x2 ECharts grid (`Weekly running volume`, `Weekly strength volume`, `VO₂ max progression` with Sportordination `46,9` reference line, and `Running HR time-in-zone Z1–Z5` stacked bars with a 5-zone window summary strip).
+  - `/health` renders a 6-card vitals KPI strip (including Body Battery `+charged / -drained` and Morning Readiness `Acute load`) and a 2x2 ECharts grid (`Nightly HRV vs. Personal Baseline`, `Sleep Score & Architecture`, `Resting HR & Daily Stress`, and dual-axis `Morning Readiness, Body Battery & 7d Acute Load`).
 - **Sticky Table Headers (`StickyTableHeaderDirective`)**: Global `table thead, table thead th { position: sticky; top: 0; z-index: 20; }` in `frontend/src/styles.css` works alongside `thead[appStickyHeader]` (`frontend/src/app/shared/directives/sticky-table-header.directive.ts`) to dynamically constrain table scroll containers to the viewport height.
 
 ## Rules
