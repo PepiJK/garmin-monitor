@@ -54,12 +54,12 @@ Status colors (`teal-400` / `#2DD4BF`, `amber-400` / `#FBBF24`, `red-400` / `#F8
 ## Spacing, radius, borders
 
 - **Page Container**: `mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6`.
-- **Border Radius**: `rounded-xl` for elevated cards, chart panels, and tab strip containers; `rounded-lg` for inner tab pills; `rounded-md` for action buttons and status badges; `rounded-full` for status indicator dots.
+- **Border Radius**: `rounded-xl` for time-window selector and tab strip containers; `rounded-lg` for elevated cards, chart panels, inner tab pills, and alert banners; `rounded-md` for action buttons and status badges; `rounded-full` for status indicator dots.
 - **Structural Hairline Borders**: `border border-slate-800` (`#1E293B`) separates panels, table cells, and header bars without heavy drop shadows; `border-2 border-sky-500/40` highlights the global time-window selector.
 
 ## Breakpoints
 
-- Responsive layout rules use standard Tailwind CSS media-query prefixes in templates (`sm:px-6`, `hidden sm:block`, ` md:grid-cols-2`, `lg:grid-cols-3`, `xl:grid-cols-6`).
+- Responsive layout rules use standard Tailwind CSS media-query prefixes in templates (`sm:px-6`, `hidden sm:block`, `sm:grid-cols-2`, `sm:grid-cols-5`, `lg:grid-cols-2`, `lg:grid-cols-4`, `lg:grid-cols-6`).
 
 ## Apache ECharts & Tailwind CSS theming
 
@@ -89,6 +89,6 @@ Status colors (`teal-400` / `#2DD4BF`, `amber-400` / `#FBBF24`, `red-400` / `#F8
 
 - Left-aligned typographic hierarchy; right-aligned numeric table columns (`tabular-nums`) for rapid vertical comparison between **Goal** and **Actual** metrics.
 - Structural hairline borders (`#1E293B` / `border-slate-800`) encode data groups cleanly without heavy drop shadows.
-- **Sticky Table Headers (`StickyTableHeaderDirective`)**: Data tables (`training-plan-table`, `stammdaten-table`, `week-workouts-table`) use `thead[appStickyHeader]` (`frontend/src/app/shared/directives/sticky-table-header.directive.ts`) to dynamically constrain scroll container height to the viewport and keep opaque headers (`bg-emerald-950` / `bg-slate-950`) pinned while scrolling horizontally and vertically.
+- **Sticky Table Headers (`StickyTableHeaderDirective`)**: Data tables (`training-plan-table`, `stammdaten-table`, `week-workouts-table`, `health-days-table`) use `thead[appStickyHeader]` (`frontend/src/app/shared/directives/sticky-table-header.directive.ts`) to dynamically constrain scroll container height to the viewport and keep opaque headers (`bg-emerald-950` / `bg-slate-950`) pinned while scrolling horizontally and vertically.
 - **Locale & Formatting (`german-format.ts`)**: Dates (`DD.MM.YYYY`), 24h times (`HH:mm`), German weekday badges (`Montag`..`Sonntag`), and decimal/thousand separators (`de-DE` / `de-AT`) are formatted consistently via `frontend/src/app/core/format/german-format.ts`.
 - **Component Host & Accessibility**: Every component sets `changeDetection: ChangeDetectionStrategy.OnPush` and `host: { class: 'block' }`. Interactive tablists, toggle groups, and status banners provide explicit ARIA attributes (`role="tablist"`, `role="tab"`, `aria-selected`, `aria-pressed`, `aria-label`).

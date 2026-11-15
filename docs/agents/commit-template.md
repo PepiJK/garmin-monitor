@@ -56,8 +56,6 @@ chore(scope): summarize the change
 
 - Explain the meaningful change and why it is needed.
 - Mention important compatibility, security, data, or rollout impact.
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 '@
 
 $commitMessage | git commit --file -
@@ -70,8 +68,7 @@ Link the commit to the backing tracker when applicable:
 - **GitHub**: use `#<number>` or `Closes #<number>` / `Fixes #<number>`.
 - **Azure DevOps**: use `AB#<id>` or `Fixes AB#<id>` to link directly to Azure Boards work items.
 
-Keep unrelated changes in separate commits when practical. Preserve required trailers, including
-the configured Copilot co-author trailer when the commit is created by an agent workflow.
+Keep unrelated changes in separate commits when practical. Preserve required trailers when the commit is created by an agent workflow.
 
 ## Completion criteria
 
